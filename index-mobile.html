@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<!-- saved from url=(0172)http://display.ugc.bazaarvoice.com/common/util/clientTestPage.html?client=Anntaylorloft&siteId=Main%20Site&locale=en_US&productId=417548&methods=rr_show_reviews&mobile=true -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <title>Test Client Integration Page</title>
+    <link rel="icon" href="data:image/png;base64,iVBORw0KGgo=">
+    <style data-fbh-seen="true">
+      body {
+        font-family: Helvetica, Arial, sans-serif;
+      }
+    </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1.0, maximum-scale=1.0"><script type="text/javascript" async="" src="./index-mobile_files/bv-analytics.js"></script><script src="./index-mobile_files/bvapi.js"></script><link media="all" rel="stylesheet" type="text/css" href="./index-mobile_files/screen.css"><script type="text/javascript" charset="utf-8" async="" data-requirecontext="_BV" data-requiremodule="secondary" src="./index-mobile_files/secondary.js"></script></head>
+  <body>
+    <!--
+    This page provides support for viewing built customers in the various
+    Firebird s3 buckets. In each bucket, this page can be accessed at
+    /common/util/clientTestPage.html.
+
+    This page is controlled via the query string. The following options are
+    supported:
+
+    ## All methods
+
+    - client: clientname in case of Firebird and {{client}} portion from apihostname {{client}}.ugc.bazaarvoice.com
+    for Agrippa. Capitalization matters
+    - mobile: set to 'true' to enable mobile mode (not supported if Agrippa client is used. In case of Agrippa clients,
+    mobile displays have special display code)
+    - product (alias: productId, alias: productid): set a value to be used in the
+    global config
+    - staging: set to 'true' to use staging data (prod is default)
+    - impl: the implementation to load; useful for testing
+    the "b" portion of an a/b test (not supported if Agrippa client is used)
+    - displaycode: display code is required portion of scout file url for Agrippa clients
+    It's applicable only for Agrippa clients
+    - localScout : set to 'true' to enable loading a local scout file from your firebird instance instead of from the servers
+    (not supported if Agrippa client is used)
+    - noParentSchema: Shove itemscope structured data markup into the body tag (not supported if Agrippa client is used)
+    - itemtype: The itemtype to shove into the body tag (Product by default)
+    (not supported if Agrippa client is used)
+
+    ## Specifying methods
+
+    By default, the page will call the rr_show_reviews and the
+    qa_show_questions methods for CV2 (Firebird) clients and rr_show_reviews for Agrippa clients.
+    You can specify methods as a comma-separated
+    list in the methods parameter:
+
+       methods=rr_inline_ratings
+
+    The currently supported methods are:
+    
+    For Firebird:
+    - rr_show_reviews
+    - qa_show_questions
+    - rr_submit_generic
+    - rr_inline_ratings
+
+    For Agrippa:
+    - rr_show_reviews
+    - qa_show_questions
+    - sy_show_stories
+
+    ### Method-specific configuration
+
+    Some methods support method-specific configuration. These can be
+    provided via query string.
+
+    #### Generic Submission
+
+    - categoryId
+    - familyProductId
+
+    #### Inline Ratings
+
+    - productIds: a comma-separated list of product IDs
+    - inlineRatingContainerPrefix (defaults to 'BVRRInlineRatings')
+
+    #### Question&Answers and Stories for Agrippa
+
+    - subjectType: specifies page type, can be 'product' (this is default value if not specified) or 'category'.
+
+    -->
+    <script>
+
+      (function () {
+
+        // TEMPLATING
+        // ==========
+
+        // Borrowed from https://gist.github.com/marlun78/2701678.
+
+        (function () {
+
+          // By default, Underscore uses ERB-style template delimiters, change the
+          // following template settings to use alternative delimiters.
+          var settings = {
+              evaluate: (/<%([\s\S]+?)%>/g),
+              interpolate: (/<%=([\s\S]+?)%>/g),
+              escape: (/<%-([\s\S]+?)%>/g)
+          };
+
+          // When customizing `templateSettings`, if you don't want to define an
+          // interpolation, evaluation or escaping regex, we need one that is
+          // guaranteed not to match.
+          var noMatch = /.^/;
+
+          // Certain characters need to be escaped so that they can be put into a
+          // string literal.
+          var escapes = {
+              '\\': '\\',
+              "'": "'",
+              'r': '\r',
+              'n': '\n',
+              't': '\t',
+              'u2028': '\u2028',
+              'u2029': '\u2029'
+          };
+
+          for (var p in escapes) {
+              escapes[escapes[p]] = p;
+          }
+
+          var escaper = /\\|'|\r|\n|\t|\u2028|\u2029/g;
+          var unescaper = /\\(\\|'|r|n|t|u2028|u2029)/g;
+
+          var makeTemplate = function (text, data, objectName) {
+            settings.variable = objectName;
+
+            // Compile the template source, taking care to escape characters that
+            // cannot be included in a string literal and then unescape them in code
+            // blocks.
+            var source = "__p+='" + text
+              .replace(escaper, function (match) {
+                  return '\\' + escapes[match];
+              })
+              .replace(settings.escape || noMatch, function (match, code) {
+                  return "'+\n_.escape(" + unescape(code) + ")+\n'";
+              })
+              .replace(settings.interpolate || noMatch, function (match, code) {
+                  return "'+\n(" + unescape(code) + ")+\n'";
+              })
+              .replace(settings.evaluate || noMatch, function (match, code) {
+                  return "';\n" + unescape(code) + "\n;__p+='";
+              }) + "';\n";
+
+            // If a variable is not specified, place data values in local scope.
+            if (!settings.variable) {
+                source = 'with(obj||{}){\n' + source + '}\n';
+            }
+
+            source = "var __p='';var print=function(){__p+=Array.prototype.join.call(arguments, '')};\n" + source + "return __p;\n";
+
+            var render = new Function(settings.variable || 'obj', source);
+
+            if (data) {
+                return render(data);
+            }
+
+            var template = function (data) {
+                return render.call(this, data);
+            };
+
+            // Provide the compiled function source as a convenience for build time
+            // precompilation.
+            template.source = 'function(' + (settings.variable || 'obj') + '){\n' + source + '}';
+
+            return template;
+          };
+
+          window.makeTemplate = makeTemplate;
+        }());
+
+        // UTILITIES
+        // =========
+
+
+        // Turn an array-like collection into an array.
+        function toArray (collection) {
+          try {
+            return Array.prototype.slice.call(collection, 0);
+          }
+          catch (e) {
+            var result = [];
+            for (var i = 0, l = collection.length; i < l; i++) {
+              result.push(collection[i]);
+            }
+            return result;
+          }
+        }
+
+        // Applies an iterator against a collection of nodes matching a
+        // selector.
+        function select (selector, callback, scope) {
+          if (typeof scope === 'undefined') {
+            scope = null;
+          }
+          var elements = document.querySelectorAll(selector);
+          elements = toArray(elements);
+          for (var i = 0, element; element = elements[i]; i++) {
+            callback.call(null, element);
+          }
+          return elements;
+        }
+
+        // Set HTML on an element/elements.
+        function html (selector, contents) {
+          select(selector, function (element) {
+            element.innerHTML = contents;
+          });
+        }
+
+        // Show an element/elements.
+        function show (selector) {
+          select(selector, function (element) {
+            element.style.display = 'block';
+          });
+        }
+
+        // Append string contents to the bottom of a DOM node. Takes either a
+        // selector string or a DOM node as the first argument.
+        function append (element, contents) {
+          var iterator = function (element) {
+            if (document.createRange) {
+              var range = document.createRange();
+              range.selectNode(element);
+              var documentFragment = range.createContextualFragment(contents);
+              element.appendChild(documentFragment);
+            } else {
+              // IE8 doesn't support createRange.
+              var div = document.createElement('div');
+              div.innerHTML = contents;
+              for (var i = 0, child; child = div.children[i]; i++) {
+                element.appendChild(child);
+              }
+            }
+          }
+          if (typeof element === 'string') {
+            select(element, iterator);
+          }
+          else {
+            iterator(element);
+          }
+        }
+
+        function getJSON (url, callback) {
+          var xhr = new XMLHttpRequest();
+          xhr.open('GET', url);
+          xhr.onreadystatechange = function () {
+            if (xhr.readyState !== 4) { return; }
+            callback( JSON.parse(xhr.responseText) );
+          };
+          xhr.send();
+        }
+
+        // Look up a query string parameter. Takes any number of string arguments.
+        // Will return the first one for which it finds a value, or `null` if it
+        // finds none.
+        function query () {
+          for (var i = 0, len = arguments.length, key; i < len; i++) {
+            key = arguments[i];
+            if (key in QUERY) { return QUERY[key]; }
+          }
+          return null;
+        }
+
+        function q (selector) {
+          return document.querySelector(selector);
+        }
+
+        // TASKS
+        // =====
+
+        var SCOUT_FILE_URL_MAP = {
+          'display-test.ugc.bazaarvoice.com' : 'https://dev-firebird-health.nexus.bazaarvoice.com/customers/scoutFileLocal?customer=',
+          'display-qa.ugc.bazaarvoice.com' : 'https://qa-firebird-health.nexus.bazaarvoice.com/customers/scoutFileLocal?customer=',
+          'display-stg.ugc.bazaarvoice.com' : 'https://prod-firebird-health.nexus.bazaarvoice.com/customers/scoutFileLocal?customer=',
+          'display.ugc.bazaarvoice.com' : 'https://prod-firebird-health.nexus.bazaarvoice.com/customers/scoutFileLocal?customer=',
+        };
+
+        // Figure out the URL to the scout file. If we're using the production
+        // scout file, this is easy. If we're using a local version, we need to ask
+        // FBH.
+        function getScoutFileUrl (callback) {
+          if (localScout) {
+            // Ask FBH what the local scout file URL would be.
+            var requestUrl = SCOUT_FILE_URL_MAP [host] + clientName;
+            if (site) {
+              requestUrl += '&siteName=' + site;
+            }
+            if (locale) {
+              requestUrl += '&locale=' + locale;
+            }
+
+            getJSON(requestUrl, function (data) {
+              callback(data.localScoutFileUrl);
+            });
+          }
+          else {
+            if (isAgrippa && clientName) {
+              var scoutFile = '//' + clientName + '.ugc.bazaarvoice.com';
+              scoutFile += (staging ? '/bvstaging/static/' : '/static/');
+              scoutFile += displayCode + '/';
+            } else {
+              // Infer what the scout file URL would be.
+              var scoutFile = '//' + host;
+              scoutFile += (staging ? '/bvstaging/static/' : '/static/');
+              if (clientName) {
+                scoutFile += clientName + '/';
+              }
+              if (site) {
+                scoutFile += site + '/';
+              }
+              if (locale) {
+                scoutFile += locale + '/';
+              }
+            }
+            scoutFile += 'bvapi.js';
+            callback(scoutFile);
+          }
+        }
+
+        // Put the scout file onto the page.
+        function loadScoutFile (url, callback) {
+          var script = document.createElement('script');
+          script.src = url;
+          document.head.appendChild(script);
+
+          // Check to see if the script has loaded yet.
+          function handler (_, isAbort) {
+            if (isAbort || !script.readyState || /loaded|complete/.test(script.readyState) ) {
+              script.onload = script.onreadystatechange = null;
+              script = undefined;
+              if (!isAbort) {
+                if (callback) { callback(); }
+              }
+            }
+          }
+
+          script.onload = script.onreadystatechange = handler;
+        }
+
+
+        // Now that the scout file has loaded, figure out which UI methods to
+        // trigger.
+        function loadBV () {
+          var methodConfig;
+          var template;
+
+          // If the URL param wasn't present, show reviews and questions for CV2 and reviews for Agrippa by default.
+          methods = methods && methods.split(',') || defaultMethods;
+
+          var hasMethod = function (name) {
+            if (methods.indexOf) {
+              return methods.indexOf(name) > -1;
+            }
+            else {
+              for (var k = 0, ll = methods.length; k < ll; k++) {
+                if (methods[k] === name) { return true; }
+              }
+            }
+          }
+
+          // Show which methods we're calling for debug reasons.
+          html( '#methods strong', methods.join(', ') );
+          
+          if ( isAgrippa && hasMethod('qa_show_questions') ) {
+            methodConfig = methodConfigs.qa_show_questions = {};
+            methodConfig.subjectType = subjectType;
+            if (categoryId) {
+              methodConfig.categoryId = categoryId;
+            }
+          }         
+
+          if ( isAgrippa && hasMethod('sy_show_stories') ) {
+            methodConfig = methodConfigs.sy_show_stories = {};
+            methodConfig.subjectType = subjectType;
+            if (categoryId) {
+              methodConfig.categoryId = categoryId;
+            }
+          }        
+
+          if ( !isAgrippa && hasMethod('rr_submit_generic') ) {
+            // We should show GRS on the page.
+            show('#grs');
+            methodConfig = methodConfigs.rr_submit_generic = {};
+
+            if (categoryId) {
+              methodConfig.categoryId = categoryId;
+            }
+            else if (familyProductId) {
+              methodConfig.familyProductId = familyProductId;
+            }
+          }
+
+          if ( !isAgrippa && hasMethod('rr_inline_ratings') ) {
+            // We should show inline ratings. Take each of the product IDs
+            // specified and create a content area for it.
+            var tmplNode = document.querySelector('#inline-rating-template');
+            var tmpl;
+            if ('textContent' in tmplNode) {
+              tmpl = tmplNode.textContent;
+            }
+            else {
+              // IE8.
+              tmpl = tmplNode.innerHTML;
+            }
+
+            template = makeTemplate(tmpl);
+            for (var i = 0, length = productIds.length, pid, markup; i < length; i++) {
+              pid = productIds[i];
+              markup = template({
+                prefix : inlineRatingContainerPrefix,
+                productId : pid
+              });
+              append('#BVRRInlineRatings', markup);
+            }
+
+            methodConfig = methodConfigs.rr_inline_ratings = {
+              productIds : productIds,
+              containerPrefix : inlineRatingContainerPrefix
+            };
+          }
+
+          $BV.configure('global', config);
+
+          for (var j = 0, len = methods.length, m, parts, cfg; j < len; j++) {
+            // Turn (e.g.) 'rr_show_reviews' into 'rr' and 'show_reviews'.
+            m = methods[j];
+            parts = m.split('_');
+            cfg = methodConfigs[m];
+            var prefix = parts.shift();
+            var rest = parts.join('_');
+
+            $BV.ui(prefix, rest, cfg || {});
+          }
+        }
+
+        function openGenericSubmission () {
+          $BV.ui('rr', 'submit_generic', methodConfigs.rr_submit_generic || {});
+        }
+        window.openGenericSubmission = openGenericSubmission;
+
+        // BOOTSTRAPPING
+        // =============
+
+        if (!document.head) {
+          document.head = document.getElementsByTagName('head')[0];
+        }
+
+        // Parse the query parameters once instead of every time we do a lookup.
+        var queryString = window.location.search.substring(1);
+        var vars = queryString.split('&');
+        var QUERY = {};
+        for (var i = 0; i < vars.length; i++) {
+          var pair = vars[i].split('=');
+          QUERY[ pair[0] ] = decodeURIComponent(pair[1]);
+        }
+
+
+        var methodConfigs = {};
+        var host = window.location.host;
+
+        // General configuration.
+        var clientName = query('client');
+        var site = query('site') || false;
+        var locale = query('locale') || false;
+        var staging = query('staging') || false;
+        var productId = query('product', 'productId', 'productid') || 'product1';
+        var userToken = query('userToken', 'user');
+        var mobile = query('mobile');
+        var canonical = query('canonical');
+        var methods = query('methods');
+        var impl = query('impl');
+        var displayCode = query('displaycode');
+        var localScout = query('localScout') || false;
+        var noParentSchema = (query('noParentSchema') === 'true') || false;
+        var itemtype = query('itemtype') || 'Product';
+        var subjectType = query('subjecttype') || 'product';
+        var isAgrippa = displayCode ? true : false;
+
+        var config = { productId : productId };
+
+        var defaultMethods = isAgrippa ? [ 'rr_show_reviews' ] : [ 'qa_show_questions', 'rr_show_reviews' ];
+
+        // GRS configuration.
+        // categoryId parameter is reusable for Q&A and Stories for Agrippa clients
+        var categoryId = query('categoryId');
+        var familyProductId = query('familyProductId');
+
+        // Inline ratings configuration.
+        var inlineRatingContainerPrefix = query('inlineRatingContainerPrefix') || 'BVRRInlineRatings';
+        var productIds = (query('productIds')|| '').split(',');
+
+        if (userToken) {
+          config.userToken = userToken;
+        }
+
+        if (canonical) {
+          append(
+            document.head,
+            '<link rel="canonical" href="/common/util/clientTestPage.html" />'
+          );
+        }
+
+        if (mobile) {
+          append(
+            document.head,
+            '<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1.0, maximum-scale=1.0" />'
+          );
+        }
+
+        if (impl) {
+          document.cookie = [
+            [ 'BVImpl', encodeURIComponent(site || 'Main Site') ].join(''),
+            '=',
+            impl
+          ].join('');
+        }
+
+        if ( !('console' in window) ) {
+          window.console = {
+            log : function () {}
+          };
+        }
+
+        // Look up the scout file URL, then load it, then do some stuff once the
+        // scout file is loaded.
+        getScoutFileUrl(function (url) {
+          loadScoutFile(url, function () {
+            loadBV();
+            
+            if (isAgrippa) {
+              q('#version').style.display = 'none';
+              q('#package').style.display = 'none';
+              q('#workspace').style.display = 'none';
+              q('#environment').style.display = 'none';
+              q('#mobile').style.display = 'none';
+              q('#displaycode').style.display = 'none';
+              q('#site').style.display = 'none';
+              q('#displaycodes').style.display = 'none';
+              q('#scout').style.display = 'none';
+              q('#bv-primary').style.display = 'none';
+            } else {
+              if (impl && !BV._options.implementations.weights[impl]) {
+                console.log('Specified impl', impl, 'not found in BV._options.implementations.weights:',
+                BV._options.implementations.weights);
+                document.querySelector('#displaycode').style.color = 'red';
+              }
+
+              var opt = BV.options;
+
+              html('#version strong', BV._internal.uiVersion);
+              html('#package strong', opt.clientname + '.' + opt.version);
+              html('#workspace strong', opt.workspace);
+              html('#environment strong', opt.environment);
+              html('#mobile strong', mobile ? 'true' : 'false');
+
+              q('#scout a').setAttribute('href', url);
+              q('#bv-primary a').setAttribute('href', BV._internal.baseUrl + '/scripts/bv-primary.js');
+
+              html('#displaycode strong', opt.displaycode);
+              html('#site strong', opt.site || site);
+
+              html('#local-or-built', localScout ? '(local)' : '(built)');
+              var weights = BV._options.implementations.weights;
+              var weight;
+              for (var dc in weights) {
+                weight = weights[dc];
+                append('#displaycodes ul', '<li>' + dc + ': ' + weight + '%</li>');
+              }
+            }
+          });
+        });
+      })();
+
+    </script>
+
+    <div id="version">firebird version: <strong>1.0.30</strong></div>
+    <div id="package">package: <strong>Anntaylorloft.507</strong></div>
+    <div id="workspace">workspace (qa/prod): <strong>local</strong></div>
+    <div id="environment">environment (stg/prod): <strong>production</strong></div>
+    <div id="methods">methods: <strong>rr_show_reviews</strong></div>
+    <div id="mobile">mobile: <strong>true</strong></div>
+    <div id="displaycode">display code: <strong>0063</strong></div>
+    <div id="site">site/deployment zone: <strong>Main Site</strong></div>
+
+    <div id="displaycodes">available display codes:
+      <ul><li>0063: 100%</li></ul>
+    </div>
+
+    <div id="scout"><a href="./index-mobile_files/bvapi.js">scout file</a> <span id="local-or-built">(built)</span></div>
+    <div id="bv-primary"><a href="http://localhost.bazaarvoice.com/static/Anntaylorloft/main_site/507/0063/en_US/scripts/bv-primary.js">bv-primary</a></div>
+
+    <div id="grs" style="display:none">
+      <a id="bv-generic-submission-link" href="javascript:openGenericSubmission();">open grs</a>
+    </div>
+
+    <hr>
+    <div class="page-element">
+      <div id="schemaParent">
+        <div id="BVRRSummaryContainer">  <div class="bv-cleanslate bv-cv2-cleanslate"> <div data-bv-v="summary:1" class="bv-shared bv-core-container-507">
+ <!--[if lt IE 7]> <div class="bv-compat bvie6 bvie-lt8 bvie"> <![endif]--> <!--[if IE 7]> <div class="bv-compat bvie7 bvie-lt8 bvie"> <![endif]--> <!--[if IE 8]> <div class="bv-compat bvie8 bvie"> <![endif]--> <!--[if IE 9]> <div class="bv-compat bvie9 bvie"> <![endif]--> <!--[if gt IE 9]> <!--><div class="bv-compat"> <!--<![endif]--> <div class="bv-prs-container"> <div class="bv-primarySummary-rating-container"> <div class="bv-summary-bar  ">    <dl class="bv-stars-container" itemprop="aggregateRating" itemscope="" itemtype="http://schema.org/AggregateRating">  <meta itemprop="itemReviewed" content="V-Neck Clean Cami">     <dt class="bv-rating-ratio">  <a href="http://display.ugc.bazaarvoice.com/common/util/clientTestPage.html?client=Anntaylorloft&amp;siteId=Main%20Site&amp;locale=en_US&amp;productId=417548&amp;methods=rr_show_reviews&amp;mobile=true#" class="bv-rating-stars-container bv-focusable" title="Read 90 Reviews">   <span class="bv-rating-stars bv-rating-stars-off" aria-hidden="true">  ☆☆☆☆☆  </span>  <span class="bv-rating-stars-on bv-rating-stars" style="width:96% !important;" aria-hidden="true">  ☆☆☆☆☆  </span>    <meta itemprop="bestRating" content="5">     <span class="bv-off-screen">4.8 out of 5 stars. Read reviews.</span>     </a>  </dt>   <dd class="bv-rating-ratio-number">   <div data-bv-v="histogram:2" class="bv-histogram-target">
+  <a class="bv-rating bv-text-link bv-popup-target bv-focusable" aria-haspopup="true" aria-expanded="false" aria-label="4.8 out of 5 rating." href="http://display.ugc.bazaarvoice.com/common/util/clientTestPage.html?client=Anntaylorloft&amp;siteId=Main%20Site&amp;locale=en_US&amp;productId=417548&amp;methods=rr_show_reviews&amp;mobile=true#histogram" tabindex="0"> <span itemprop="ratingValue" aria-hidden="true">4.8</span> </a>  
+</div>    </dd>     <dd class="bv-rating-ratio-count">   <a href="http://display.ugc.bazaarvoice.com/common/util/clientTestPage.html?client=Anntaylorloft&amp;siteId=Main%20Site&amp;locale=en_US&amp;productId=417548&amp;methods=rr_show_reviews&amp;mobile=true#" class="bv-rating-label bv-text-link bv-focusable"> <span itemprop="reviewCount">90</span> Reviews  <span class="bv-off-screen">This action will navigate to reviews.</span> </a>    </dd>    </dl>    <div class="bv-details-bar">   <div class="bv-percent-recommend-container">     93% of reviewers recommend this product    </div>       </div>     <div class="bv-action-bar">    <div class="bv-write-review-container bv-write-container"> <button type="button" class="bv-write-review bv-focusable bv-submission-button" onclick="return false;"> Write a review   <span class="bv-off-screen">. This action will open a modal dialog.</span>  </button> </div>        </div>   </div>  </div> </div> </div> 
+</div> </div>  </div>
+
+        <br>
+
+        <div id="BVRRSearchContainer">  <div class="bv-cleanslate bv-cv2-cleanslate"> <div data-bv-v="contentSearch:1" class="bv-shared bv-core-container-507">
+ <!--[if lt IE 7]> <div class="bv-compat bvie6 bvie-lt8 bvie"> <![endif]--> <!--[if IE 7]> <div class="bv-compat bvie7 bvie-lt8 bvie"> <![endif]--> <!--[if IE 8]> <div class="bv-compat bvie8 bvie"> <![endif]--> <!--[if IE 9]> <div class="bv-compat bvie9 bvie"> <![endif]--> <!--[if gt IE 9]> <!--><div class="bv-compat"> <!--<![endif]--> <div class="bv-content-search">  <div class="bv-masthead">  <div class="bv-masthead-product bv-summary-bar"> <div class="bv-secondary-summary">   <dl class="bv-stars-container">   <dt class="bv-rating-ratio">  <a href="http://display.ugc.bazaarvoice.com/common/util/clientTestPage.html?client=Anntaylorloft&amp;siteId=Main%20Site&amp;locale=en_US&amp;productId=417548&amp;methods=rr_show_reviews&amp;mobile=true#" class="bv-rating-stars-container bv-focusable" title="Read 90 Reviews">   <span class="bv-rating-stars bv-rating-stars-off" aria-hidden="true">  ☆☆☆☆☆  </span>  <span class="bv-rating-stars-on bv-rating-stars" style="width:96% !important;" aria-hidden="true">  ☆☆☆☆☆  </span>     <span class="bv-off-screen">4.8 out of 5 stars. Read reviews.</span>     </a>  </dt>   <dd class="bv-rating-ratio-number">  <span class="bv-rating"><span aria-hidden="true">4.8</span></span>   </dd>     <dd class="bv-rating-ratio-count">   <a href="http://display.ugc.bazaarvoice.com/common/util/clientTestPage.html?client=Anntaylorloft&amp;siteId=Main%20Site&amp;locale=en_US&amp;productId=417548&amp;methods=rr_show_reviews&amp;mobile=true#" class="bv-rating-label bv-text-link bv-focusable"> 90 Reviews  <span class="bv-off-screen">This action will navigate to reviews.</span> </a>    </dd>    </dl>     <div class="bv-percent-recommend-container">     93% of reviewers recommend this product    </div>   </div>  </div>  <div data-bv-v="searchBar:2" class="bv-searchbar" role="search" aria-label="Search">
+ <div class="bv-masthead-search bv-submission"> <div class="bv-fieldsets">  <div class="bv-expand-filter-button-offset-off">  <label for="bv-text-field-search-contentSearch1" class="bv-off-screen">Search topics and reviews</label> <span class="bv-search-control-icon" aria-hidden="true">ϙ</span> <input id="bv-text-field-search-contentSearch1" class="bv-text bv-focusable bv-search-text" type="text" name="bv-search" placeholder="Search topics and reviews"> <button class="bv-focusable bv-search-clear-icon bv-hidden" onclick="return false;"> <span aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Close</span> </button> <button type="button" class="bv-content-btn bv-content-search-btn bv-focusable" onclick="return false;"> <span class="bv-search-control-icon" aria-hidden="true">ϙ</span> <span class="bv-off-screen">Search</span> </button> </div>  </div> </div> 
+</div>      </div> </div>  </div> 
+</div> </div>  </div><div id="BVRRContainer"> <div class="bv-cleanslate bv-cv2-cleanslate"> <div data-bv-v="contentList:1" class="bv-shared bv-core-container-507" data-product-id="417548">
+ <!--[if lt IE 7]> <div class="bv-compat bvie6 bvie-lt8 bvie"> <![endif]--> <!--[if IE 7]> <div class="bv-compat bvie7 bvie-lt8 bvie"> <![endif]--> <!--[if IE 8]> <div class="bv-compat bv-scroll-spy bvie8 bvie"> <![endif]--> <!--[if IE 9]> <div class="bv-compat bv-scroll-spy bvie9 bvie"> <![endif]--> <!--[if gt IE 9]> <!--><div class="bv-compat bv-scroll-spy" data-bv-target="review"> <!--<![endif]--> <meta name="bvDateModified" content=""> <div class="bv-content-list-container">     <div class="bv-header"> <div class="bv-action-bar">   <h2 class="bv-action-bar-header">Reviews</h2>       <div class="bv-write-review-container bv-write-container"> <button type="button" class="bv-write-review bv-focusable bv-submission-button" onclick="return false;"> Write a review   <span class="bv-off-screen">. This action will open a modal dialog.</span>  </button> </div>      </div>   <div class="bv-inline-form-container"></div>  <div class="bv-section-summary"> <table class="bv-section-summary-table bv-table-full-width" role="presentation"> <tbody><tr class="bv-section-summary-inline">   <td data-bv-v="inlineHistogram:8" class="bv-inline-histogram bv-section-summary-block">
+  <div class="bv-inline-histogram-ratings"> <div class="bv-inline-histogram-header"> <h4 class="bv-content-title"></h4> </div> <p class="bv-histogram-filter-helper"></p> <table role="presentation">   <tbody><tr class="bv-inline-histogram-ratings-star-container" title="Select to filter reviews with 5 stars." aria-labelledby="bv-inline-histogram-ratings-star-label-5"> <td class="bv-inline-histogram-ratings-star" data-bv-histogram-rating-value="5"> 5<span class="bv-glyph" aria-hidden="true">☆</span> <span class="bv-off-screen">stars</span> </td> <td class="bv-inline-histogram-ratings-bar" data-bv-histogram-rating-value="5" role="presentation" data-bv-histogram-rating-count="83"> <span class="bv-content-secondary-ratings-container"> <span class="bv-content-secondary-ratings-value" style="width:92% !important;"></span> </span> </td> <td class="bv-inline-histogram-ratings-score"> <span aria-hidden="true"> 83 </span> <span class="bv-off-screen"> 83 reviews with 5 stars.  </span> <button type="button" id="bv-inline-histogram-ratings-star-label-5" class="bv-focusable bv-off-screen" onclick="return false;">Select to filter reviews with 5 stars.</button> </td> </tr>    <tr class="bv-inline-histogram-ratings-star-container" title="Select to filter reviews with 4 stars." aria-labelledby="bv-inline-histogram-ratings-star-label-4"> <td class="bv-inline-histogram-ratings-star" data-bv-histogram-rating-value="4"> 4<span class="bv-glyph" aria-hidden="true">☆</span> <span class="bv-off-screen">stars</span> </td> <td class="bv-inline-histogram-ratings-bar" data-bv-histogram-rating-value="4" role="presentation" data-bv-histogram-rating-count="2"> <span class="bv-content-secondary-ratings-container"> <span class="bv-content-secondary-ratings-value" style="width:2% !important;"></span> </span> </td> <td class="bv-inline-histogram-ratings-score"> <span aria-hidden="true"> 2 </span> <span class="bv-off-screen"> 2 reviews with 4 stars.  </span> <button type="button" id="bv-inline-histogram-ratings-star-label-4" class="bv-focusable bv-off-screen" onclick="return false;">Select to filter reviews with 4 stars.</button> </td> </tr>    <tr class="bv-inline-histogram-ratings-star-container" title="Select to filter reviews with 3 stars." aria-labelledby="bv-inline-histogram-ratings-star-label-3"> <td class="bv-inline-histogram-ratings-star" data-bv-histogram-rating-value="3"> 3<span class="bv-glyph" aria-hidden="true">☆</span> <span class="bv-off-screen">stars</span> </td> <td class="bv-inline-histogram-ratings-bar" data-bv-histogram-rating-value="3" role="presentation" data-bv-histogram-rating-count="4"> <span class="bv-content-secondary-ratings-container"> <span class="bv-content-secondary-ratings-value" style="width:4% !important;"></span> </span> </td> <td class="bv-inline-histogram-ratings-score"> <span aria-hidden="true"> 4 </span> <span class="bv-off-screen"> 4 reviews with 3 stars.  </span> <button type="button" id="bv-inline-histogram-ratings-star-label-3" class="bv-focusable bv-off-screen" onclick="return false;">Select to filter reviews with 3 stars.</button> </td> </tr>    <tr class="bv-inline-histogram-ratings-star-container" title="Select to filter reviews with 2 stars." aria-labelledby="bv-inline-histogram-ratings-star-label-2"> <td class="bv-inline-histogram-ratings-star" data-bv-histogram-rating-value="2"> 2<span class="bv-glyph" aria-hidden="true">☆</span> <span class="bv-off-screen">stars</span> </td> <td class="bv-inline-histogram-ratings-bar" data-bv-histogram-rating-value="2" role="presentation" data-bv-histogram-rating-count="0"> <span class="bv-content-secondary-ratings-container"> <span class="bv-content-secondary-ratings-value" style="width:0% !important;"></span> </span> </td> <td class="bv-inline-histogram-ratings-score"> <span aria-hidden="true"> 0 </span> <span class="bv-off-screen"> 0 reviews with 2 stars.  </span> <button type="button" id="bv-inline-histogram-ratings-star-label-2" class="bv-focusable bv-off-screen" onclick="return false;">Select to filter reviews with 2 stars.</button> </td> </tr>    <tr class="bv-inline-histogram-ratings-star-container" title="Select to filter reviews with 1 star." aria-labelledby="bv-inline-histogram-ratings-star-label-1"> <td class="bv-inline-histogram-ratings-star" data-bv-histogram-rating-value="1"> 1<span class="bv-glyph" aria-hidden="true">☆</span> <span class="bv-off-screen">stars</span> </td> <td class="bv-inline-histogram-ratings-bar" data-bv-histogram-rating-value="1" role="presentation" data-bv-histogram-rating-count="1"> <span class="bv-content-secondary-ratings-container"> <span class="bv-content-secondary-ratings-value" style="width:1% !important;"></span> </span> </td> <td class="bv-inline-histogram-ratings-score"> <span aria-hidden="true"> 1 </span> <span class="bv-off-screen"> 1 review with 1 star.  </span> <button type="button" id="bv-inline-histogram-ratings-star-label-1" class="bv-focusable bv-off-screen" onclick="return false;">Select to filter reviews with 1 star.</button> </td> </tr>   </tbody></table> </div>  
+</td>   <td data-bv-v="secondaryRatingSummary:9" class="bv-secondary-rating-summary bv-section-summary-block">
+ <div class="bv-secondary-rating-summary-header"> <h4 class="bv-content-title"></h4> </div> <table class="bv-secondary-rating-summary-list" role="presentation">  <tbody><tr class="bv-secondary-rating-summary-stars"> <td class="bv-secondary-rating-summary-id bv-td">Overall</td> <td class="bv-rating-ratio bv-td"> <span class="bv-rating-stars-container"> <span class="bv-rating-stars bv-rating-stars-off" aria-hidden="true"> ☆☆☆☆☆ </span> <span style="width:96% !important;" class="bv-rating-stars bv-rating-stars-on" aria-hidden="true"> ☆☆☆☆☆ </span> </span> <span class="bv-secondary-rating-summary-rating" aria-label="average rating value is 4.8 of 5."> 4.8 </span> </td> </tr>    <tr class="bv-secondary-rating-summary-bars-container"> <td class="bv-secondary-rating-summary-id bv-td">How It Fits</td> <td class="bv-rating-ratio bv-td">  <span class="bv-secondary-rating-summary-container bv-content-slider"> <span class="bv-content-slider-container"> <ul class="bv-content-slider-bar" role="presentation"> <li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li> </ul> <span class="bv-content-slider-halfway"></span> <div class="bv-content-slider-value-container"> <span class="bv-content-slider-value" style="margin-left:50% !important;"></span> </div> </span> <span class="bv-content-slider-sublabel1" aria-describedby="bv-rating-aria-description-237-sublabel1" aria-label="Rating of 1 means Fits Small"> Fits Small </span> <span class="bv-off-screen" id="bv-rating-aria-description-237-sublabel1">Rating of 1 means Fits Small</span> <span class="bv-content-slider-sublabel2" aria-describedby="bv-rating-aria-description-237-sublabel2" aria-label="Rating of 5 means Fits Large"> Fits Large </span> <span class="bv-off-screen" id="bv-rating-aria-description-237-sublabel2">Rating of 5 means Fits Large</span> <span class="bv-off-screen"> How It Fits, average rating value is 3 of 5.</span>  </span>  </td> </tr>   </tbody></table> 
+</td>   </tr>   </tbody></table> </div>  <div class="bv-control-bar bv-control-bar-filter-offset"> <div data-bv-v="ugcCount:7" class="bv-control-bar-count">
+  <span class="bv-content-pagination-pages-current">    1–8 of 90 Reviews        &nbsp;</span>   
+</div>    <div data-bv-v="contentSort:1" class="bv-control-bar-sort">
+   <div class="bv-dropdown"> <div class="bv-dropdown-target" role="menu"> <span id="bv-dropdown-select-reviews" class="bv-dropdown-label"> Sort by: </span>  <button type="button" class="bv-focusable" aria-haspopup="true" aria-expanded="false" role="menuitem" onclick="return false;"> <span class="bv-dropdown-title">           Newest   </span> <span class="bv-dropdown-arrow" aria-hidden="true" role="presentation"> ▼ </span> <span class="bv-off-screen">Menu</span> </button> </div> <select class="bv-select-cleanslate bv-dropdown-select" aria-hidden="true" aria-labelledby="bv-dropdown-select-reviews">  <option value="mostHelpful"> Most Helpful </option>  <option value="positive"> Highest Rating </option>  <option value="negative"> Lowest Rating </option>  <option value="oldest"> Oldest </option>  <option value="mostRecent" selected=""> Newest </option>  </select> </div>   
+</div>    <button data-bv-v="contentFilterButton:4" class="bv-content-btn bv-filter-control bv-expand-filter-button bv-focusable" type="button" tabindex="0" onclick="return false;">
+ <span class="bv-filter-control-icon" aria-hidden="true">≡</span> <span class="bv-filter-control-text">Filter Reviews</span> <span class="bv-off-screen">Clicking on the following button will update the content below</span> 
+</button>  </div>  </div>      <div data-bv-v="contentFilter:3" class="bv-content-filter bv-filter-controls-hidden bv-active-filters-hidden">
+ <div data-bv-v="FilterControls:50" class="bv-filter-controls">
+ <div class="bv-filters bv-hidden" role="menubar">  <div data-bv-v="FilterSelect:51" class="bv-content-filter-select">
+  <div class="bv-dropdown" data-bv-filter-for="Rating"> <div class="bv-dropdown-target" role="menu"> <button type="button" class="bv-focusable" role="menuitem" aria-haspopup="true" aria-controls="bv-content-filter-dropdown-Rating" aria-expanded="false" aria-owns="bv-content-filter-dropdown-Rating" onclick="return false;"> <span class="bv-dropdown-arrow" aria-hidden="true" role="presentation"> ▼ </span> <span class="bv-dropdown-title">Rating</span> <span class="bv-off-screen">Menu</span> </button> </div> <label for="bv-dropdown-select-51" class="bv-off-screen"> Filter by </label> <select id="bv-dropdown-select-51" class="bv-select-cleanslate bv-dropdown-select">  <option value="1"> 1 star </option>  <option value="2"> 2 stars </option>  <option value="3"> 3 stars </option>  <option value="4"> 4 stars </option>  <option value="5"> 5 stars </option>  </select> </div>  
+</div>  <div data-bv-v="FilterSelect:52" class="bv-content-filter-select">
+  <div class="bv-dropdown" data-bv-filter-for="Age"> <div class="bv-dropdown-target" role="menu"> <button type="button" class="bv-focusable" role="menuitem" aria-haspopup="true" aria-controls="bv-content-filter-dropdown-contextdatavalue_Age" aria-expanded="false" aria-owns="bv-content-filter-dropdown-contextdatavalue_Age" onclick="return false;"> <span class="bv-dropdown-arrow" aria-hidden="true" role="presentation"> ▼ </span> <span class="bv-dropdown-title">Age</span> <span class="bv-off-screen">Menu</span> </button> </div> <label for="bv-dropdown-select-52" class="bv-off-screen"> Filter by </label> <select id="bv-dropdown-select-52" class="bv-select-cleanslate bv-dropdown-select">  <option value="18to24"> 18-24 </option>  <option value="25to34"> 25-34 </option>  <option value="35to44"> 35-44 </option>  <option value="45to54"> 45-54 </option>  <option value="55to64"> 55-64 </option>  <option value="65orOver"> Over 65 </option>  </select> </div>  
+</div>  <div data-bv-v="FilterSelect:53" class="bv-content-filter-select">
+  <div class="bv-dropdown" data-bv-filter-for="Style"> <div class="bv-dropdown-target" role="menu"> <button type="button" class="bv-focusable" role="menuitem" aria-haspopup="true" aria-controls="bv-content-filter-dropdown-contextdatavalue_Style" aria-expanded="false" aria-owns="bv-content-filter-dropdown-contextdatavalue_Style" onclick="return false;"> <span class="bv-dropdown-arrow" aria-hidden="true" role="presentation"> ▼ </span> <span class="bv-dropdown-title">Style</span> <span class="bv-off-screen">Menu</span> </button> </div> <label for="bv-dropdown-select-53" class="bv-off-screen"> Filter by </label> <select id="bv-dropdown-select-53" class="bv-select-cleanslate bv-dropdown-select">  <option value="Feminine"> Feminine – romantic and pretty </option>  <option value="Glamorous"> Glamorous – stylish and dramatic </option>  <option value="LaidBack"> Laid-back – cool and casual </option>  <option value="Modern"> Modern – bold and trendy </option>  <option value="Playful"> Playful – fun and adventurous </option>  <option value="Preppy"> Preppy – tailored and polished </option>  </select> </div>  
+</div>  <div data-bv-v="FilterSelect:54" class="bv-content-filter-select">
+  <div class="bv-dropdown" data-bv-filter-for="Body Type"> <div class="bv-dropdown-target" role="menu"> <button type="button" class="bv-focusable" role="menuitem" aria-haspopup="true" aria-controls="bv-content-filter-dropdown-contextdatavalue_BodyType" aria-expanded="false" aria-owns="bv-content-filter-dropdown-contextdatavalue_BodyType" onclick="return false;"> <span class="bv-dropdown-arrow" aria-hidden="true" role="presentation"> ▼ </span> <span class="bv-dropdown-title">Body Type</span> <span class="bv-off-screen">Menu</span> </button> </div> <label for="bv-dropdown-select-54" class="bv-off-screen"> Filter by </label> <select id="bv-dropdown-select-54" class="bv-select-cleanslate bv-dropdown-select">  <option value="Athletic"> Athletic </option>  <option value="Curvy"> Curvy </option>  <option value="FullFigured"> Full-figured </option>  <option value="Petite"> Petite </option>  <option value="Slender"> Slender </option>  <option value="SmallerOnTop"> Smaller on top than bottom </option>  <option value="SmallerOnBottom"> Smaller on bottom than top </option>  <option value="Tall"> Tall </option>  </select> </div>  
+</div>  </div> 
+</div>  <div data-bv-v="ActiveFilters:55" class="bv-active-filters bv-hidden">
+ <span class="bv-active-filters-list-title">Active Filters</span> <ul class="bv-active-filters-list">  <li data-bv-filter-headerid="Rating" class="bv-active-filters-list-item bv-filter-hidden">  <button type="button" data-bv-filter-option="1" class="bv-active-filter-button bv-focusable bv-hidden" title="Rating" onclick="return false;"> 1 star <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="2" class="bv-active-filter-button bv-focusable bv-hidden" title="Rating" onclick="return false;"> 2 stars <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="3" class="bv-active-filter-button bv-focusable bv-hidden" title="Rating" onclick="return false;"> 3 stars <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="4" class="bv-active-filter-button bv-focusable bv-hidden" title="Rating" onclick="return false;"> 4 stars <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="5" class="bv-active-filter-button bv-focusable bv-hidden" title="Rating" onclick="return false;"> 5 stars <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  </li>  <li data-bv-filter-headerid="contextdatavalue_Age" class="bv-active-filters-list-item bv-filter-hidden">  <button type="button" data-bv-filter-option="18to24" class="bv-active-filter-button bv-focusable bv-hidden" title="Age" onclick="return false;"> 18-24 <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="25to34" class="bv-active-filter-button bv-focusable bv-hidden" title="Age" onclick="return false;"> 25-34 <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="35to44" class="bv-active-filter-button bv-focusable bv-hidden" title="Age" onclick="return false;"> 35-44 <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="45to54" class="bv-active-filter-button bv-focusable bv-hidden" title="Age" onclick="return false;"> 45-54 <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="55to64" class="bv-active-filter-button bv-focusable bv-hidden" title="Age" onclick="return false;"> 55-64 <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="65orOver" class="bv-active-filter-button bv-focusable bv-hidden" title="Age" onclick="return false;"> Over 65 <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  </li>  <li data-bv-filter-headerid="contextdatavalue_Style" class="bv-active-filters-list-item bv-filter-hidden">  <button type="button" data-bv-filter-option="Feminine" class="bv-active-filter-button bv-focusable bv-hidden" title="Style" onclick="return false;"> Feminine – romantic and pretty <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="Glamorous" class="bv-active-filter-button bv-focusable bv-hidden" title="Style" onclick="return false;"> Glamorous – stylish and dramatic <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="LaidBack" class="bv-active-filter-button bv-focusable bv-hidden" title="Style" onclick="return false;"> Laid-back – cool and casual <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="Modern" class="bv-active-filter-button bv-focusable bv-hidden" title="Style" onclick="return false;"> Modern – bold and trendy <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="Playful" class="bv-active-filter-button bv-focusable bv-hidden" title="Style" onclick="return false;"> Playful – fun and adventurous <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="Preppy" class="bv-active-filter-button bv-focusable bv-hidden" title="Style" onclick="return false;"> Preppy – tailored and polished <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  </li>  <li data-bv-filter-headerid="contextdatavalue_BodyType" class="bv-active-filters-list-item bv-filter-hidden">  <button type="button" data-bv-filter-option="Athletic" class="bv-active-filter-button bv-focusable bv-hidden" title="Body Type" onclick="return false;"> Athletic <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="Curvy" class="bv-active-filter-button bv-focusable bv-hidden" title="Body Type" onclick="return false;"> Curvy <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="FullFigured" class="bv-active-filter-button bv-focusable bv-hidden" title="Body Type" onclick="return false;"> Full-figured <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="Petite" class="bv-active-filter-button bv-focusable bv-hidden" title="Body Type" onclick="return false;"> Petite <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="Slender" class="bv-active-filter-button bv-focusable bv-hidden" title="Body Type" onclick="return false;"> Slender <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="SmallerOnTop" class="bv-active-filter-button bv-focusable bv-hidden" title="Body Type" onclick="return false;"> Smaller on top than bottom <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="SmallerOnBottom" class="bv-active-filter-button bv-focusable bv-hidden" title="Body Type" onclick="return false;"> Smaller on bottom than top <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  <button type="button" data-bv-filter-option="Tall" class="bv-active-filter-button bv-focusable bv-hidden" title="Body Type" onclick="return false;"> Tall <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Remove Filter</span> </button>  </li>  <li class="bv-active-filters-list-item"> <button type="button" class="bv-active-filter-button-clear bv-focusable" onclick="return false;"> <span aria-hidden="true">Clear All</span> <span class="bv-close-icon" aria-hidden="true"> ✘ </span> <span class="bv-off-screen">Clear All Filters</span> </button> </li> </ul> 
+</div>  
+</div>   <ol data-bv-v="contentItemCollection:2" class="bv-content-list bv-content-list-reviews">
+  <li data-bv-v="contentItem:10" class="bv-content-item bv-content-top-review bv-content-review" itemprop="review" itemscope="" itemtype="http://schema.org/Review" data-content-id="Reviews-209135302">
+   <div data-bv-v="inlineProfile:14" class="bv-author-profile">
+ <div class="bv-inline-profile"> <div class="bv-author-avatar">  <div class="bv-author-avatar-nickname"> <div class="bv-content-author-name" role="presentation">          <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" onclick="return false;"> <h3>Clean Cami</h3> </button>            </div>  </div> </div> <div class="bv-popup-prosnap-userinfo bv-contains-profile-button"> <div class="bv-content-author-name" role="presentation">          <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" onclick="return false;"> <h3>Clean Cami</h3> </button>            </div>    <div class="bv-author-location">  <span> Kansas City, MO </span>  </div>    <div class="bv-author-userstats"> <ul class="bv-author-userstats-list" role="presentation">  <li class="bv-author-userstats-reviews" role="presentation">  <span class="bv-author-userstats-data">Reviews</span> <span class="bv-author-userstats-value">7</span> </li>      <li class="bv-author-userstats-votes" role="presentation">  <span class="bv-author-userstats-data"> Votes </span> <span class="bv-author-userstats-value">4</span> </li>   </ul> </div>                      <div class="bv-author-userinfo">  <ul role="presentation">  <li class="bv-author-cdv bv-first " role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Age</span> <span class="bv-author-userinfo-value">55-64</span> </li>  <li class="bv-author-cdv  " role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Style</span> <span class="bv-author-userinfo-value">Glamorous – stylish and dramatic</span> </li>  <li class="bv-author-cdv  bv-last" role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Body Type</span> <span class="bv-author-userinfo-value">Curvy</span> </li>  </ul>  </div>   </div>  </div> 
+</div>    <meta itemprop="itemReviewed" content="V-Neck Clean Cami">     <div class="bv-content-item-author-profile-offset bv-content-item-author-profile-offset-on">    <div class="bv-content-container"> <div class="bv-content-core "> <div class="bv-content-header">        <div class="bv-content-data-summary">    <div class="bv-content-badges-container">    <dl class="bv-badge-summary bv-badge-first bv-badge-top-three" role="presentation">   <dd title="By submitting a review, each client received a sweepstakes entry" class="bv-badge bv-badge-content bv-badge-content-incentivizedreview" role="presentation"> <span class="bv-badge-icon" aria-hidden="true"> ⊞ </span> <span class="bv-badge-label">Sweepstakes Entry</span> </dd>   </dl>  <dl class="bv-badge-summary bv-badge-top-three" role="presentation">    <dd title="This reviewer purchased the product." class="bv-badge bv-badge-content bv-badge-content-verifiedpurchaser" role="presentation"> <span class="bv-badge-icon" aria-hidden="true"> * </span> <span class="bv-badge-label"> Verified Purchaser </span> </dd>   </dl>  </div>   <div class="bv-content-header-meta">     <span class="bv-content-rating bv-rating-ratio" itemprop="reviewRating" itemscope="" itemtype="http://schema.org/Rating"> <meta itemprop="ratingValue" content="5"> <meta itemprop="bestRating" content="5"> <span class="bv-rating-stars-container"> <abbr title="5 out of 5 stars." class="bv-rating bv-rating-stars bv-rating-stars-off" aria-hidden="true"> ☆☆☆☆☆ </abbr> <abbr title="5 out of 5 stars." style="width:100% !important;" class="bv-rating-max bv-rating-stars bv-rating-stars-on" aria-hidden="true"> ☆☆☆☆☆ </abbr> <span class="bv-off-screen">5 out of 5 stars.</span> </span> </span>    <div class="bv-content-meta-wrapper"> <div class="bv-content-meta" role="presentation"> <div class="bv-content-reference-data bv-content-author-name">           <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" itemprop="author" onclick="return false;"> <h3>Clean Cami</h3> </button>             <div class="bv-content-datetime" role="presentation"> <meta itemprop="dateCreated" content="2019-05-09">  <meta itemprop="datePublished" content="2019-05-09">  <span class="bv-content-datetime-dot" aria-hidden="true">·</span> <span class="bv-content-datetime-stamp">6 days ago &nbsp;</span> </div>  </div> </div> </div>  </div>  <div class="bv-content-title-container">  <h4 class="bv-content-title" itemprop="headline">    Great fit   </h4>    </div>    </div>  </div>     <div class="bv-content-details-offset-on">    <div class="bv-content-summary"> <div class="bv-content-summary-body" itemprop="reviewBody">  <div class="bv-content-summary-body-text">     <p>Great for blouses and sweaters, great fit for anything</p>      </div>   <div class="bv-content-data">      <div class="bv-content-product-questions">  <dl class="bv-content-data-product-questions"> <dt class="bv-content-data-label-container"> <span class="bv-content-data-label">By submitting a review, each client received a sweepstakes entry.</span> </dt> <dd class="bv-content-data-value">Yes</dd> </dl>  </div>  <div class="bv-content-tag-dimensions">  </div>    <dl class="bv-content-data-recommend-yes"> <dt class="bv-content-data-label-container"> <span class="bv-content-data-icon" aria-hidden="true">✔</span> <span class="bv-content-data-label">Yes</span>, </dt> <dd class="bv-content-data-value">  I recommend this product. </dd> </dl>             </div>  </div> </div> </div>  <div class="bv-content-details-container">    <div class="bv-secondary-ratings" role="presentation"> <dl class="bv-content-secondary-ratings">   <dt class="bv-content-secondary-ratings-label">How It Fits</dt>  <dd class="bv-content-slider"> <span class="bv-content-slider-container"> <ul class="bv-content-slider-bar" role="presentation"> <li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li> </ul> <span class="bv-content-slider-halfway"></span> <div class="bv-content-slider-value-container"> <span class="bv-content-slider-value" style="margin-left:50% !important;"></span> </div> </span> <span class="bv-content-slider-sublabel1" aria-describedby="bv-rating-aria-description-229-sublabel1" aria-label="Rating of 1 means Fits Small"> Fits Small </span> <span class="bv-off-screen" id="bv-rating-aria-description-229-sublabel1">Rating of 1 means Fits Small</span> <span class="bv-content-slider-sublabel2" aria-describedby="bv-rating-aria-description-229-sublabel2" aria-label="Rating of 5 means Fits Large"> Fits Large </span> <span class="bv-off-screen" id="bv-rating-aria-description-229-sublabel2">Rating of 5 means Fits Large</span> <span class="bv-off-screen"> How It Fits, 3 out of 5</span>  </dd>    </dl> </div>     </div> </div> </div>   <div class="bv-content-actions-container bv-active-feedback">  <div data-bv-v="feedback:13" class="bv-feedback-container">
+   <span class="bv-off-screen bv-off-screen-positive-rating">0 people found this review helpful.</span> <span class="bv-off-screen bv-off-screen-negative-rating">0 people did not find this review helpful.</span> <dl class="bv-content-feedback-vote bv-content-feedback-vote-active"> <dt class="bv-content-feedback-vote-request"> <p>Was this helpful?</p> </dt> <dd class="bv-content-feedback-btn-container"> <button type="button" class="bv-content-btn bv-content-btn-feedback-yes bv-focusable" aria-label="Yes, review by Clean Cami is helpful." onclick="return false;"> <span aria-hidden="true"> Yes · <span class="bv-content-btn-count" aria-hidden="true">0</span> </span> <span class="bv-off-screen">0 people found this review helpful. Click to agree.</span> </button> <button type="button" class="bv-content-btn bv-content-btn-feedback-no bv-focusable" aria-label="No, review by Clean Cami is not helpful." onclick="return false;"> <span aria-hidden="true"> No · <span class="bv-content-btn-count" aria-hidden="true">0</span> </span> <span class="bv-off-screen">0 people did not find this review helpful. Click to agree.</span> </button> </dd> <dd class="bv-content-feedback-vote bv-content-feedback-vote-active"> <button type="button" class="bv-content-report-btn bv-focusable" aria-label="Mark Great fit by Clean Cami as inappropriate. " onclick="return false;">   Report  </button> </dd> </dl>   
+</div>    </div>    <div class="bv-inline-form-container"></div>  <div data-bv-v="secondaryContentList:11" class="bv-secondary-content-list">
+  <ol data-bv-v="secondaryContentItemCollection:12" class="bv-content-list bv-content-list-clientresponses">
+  
+</ol>  
+</div>   </div> 
+</li>  <li data-bv-v="contentItem:15" class="bv-content-item bv-content-top-review bv-content-review" itemprop="review" itemscope="" itemtype="http://schema.org/Review" data-content-id="Reviews-207515226">
+   <div data-bv-v="inlineProfile:19" class="bv-author-profile">
+ <div class="bv-inline-profile"> <div class="bv-author-avatar">  <div class="bv-author-avatar-nickname"> <div class="bv-content-author-name" role="presentation">          <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" onclick="return false;"> <h3>Trudowitz</h3> </button>            </div>  </div> </div> <div class="bv-popup-prosnap-userinfo bv-contains-profile-button"> <div class="bv-content-author-name" role="presentation">          <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" onclick="return false;"> <h3>Trudowitz</h3> </button>            </div>    <div class="bv-author-location">  <span> Springfield mo </span>  </div>    <div class="bv-author-userstats"> <ul class="bv-author-userstats-list" role="presentation">  <li class="bv-author-userstats-reviews" role="presentation">  <span class="bv-author-userstats-data">Review</span> <span class="bv-author-userstats-value">1</span> </li>      <li class="bv-author-userstats-votes" role="presentation">  <span class="bv-author-userstats-data"> Votes </span> <span class="bv-author-userstats-value">3</span> </li>   </ul> </div>                      <div class="bv-author-userinfo">  <ul role="presentation">  <li class="bv-author-cdv bv-first " role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Age</span> <span class="bv-author-userinfo-value">35-44</span> </li>  <li class="bv-author-cdv  " role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Style</span> <span class="bv-author-userinfo-value">Laid-back – cool and casual</span> </li>  <li class="bv-author-cdv  bv-last" role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Body Type</span> <span class="bv-author-userinfo-value">Petite</span> </li>  </ul>  </div>   </div>  </div> 
+</div>    <meta itemprop="itemReviewed" content="V-Neck Clean Cami">     <div class="bv-content-item-author-profile-offset bv-content-item-author-profile-offset-on">    <div class="bv-content-container"> <div class="bv-content-core "> <div class="bv-content-header">        <div class="bv-content-data-summary">    <div class="bv-content-badges-container">    <dl class="bv-badge-summary bv-badge-first bv-badge-top-three" role="presentation">   <dd title="By submitting a review, each client received a sweepstakes entry" class="bv-badge bv-badge-content bv-badge-content-incentivizedreview" role="presentation"> <span class="bv-badge-icon" aria-hidden="true"> ⊞ </span> <span class="bv-badge-label">Sweepstakes Entry</span> </dd>   </dl>  <dl class="bv-badge-summary bv-badge-top-three" role="presentation">    <dd title="This reviewer purchased the product." class="bv-badge bv-badge-content bv-badge-content-verifiedpurchaser" role="presentation"> <span class="bv-badge-icon" aria-hidden="true"> * </span> <span class="bv-badge-label"> Verified Purchaser </span> </dd>   </dl>  </div>   <div class="bv-content-header-meta">     <span class="bv-content-rating bv-rating-ratio" itemprop="reviewRating" itemscope="" itemtype="http://schema.org/Rating"> <meta itemprop="ratingValue" content="5"> <meta itemprop="bestRating" content="5"> <span class="bv-rating-stars-container"> <abbr title="5 out of 5 stars." class="bv-rating bv-rating-stars bv-rating-stars-off" aria-hidden="true"> ☆☆☆☆☆ </abbr> <abbr title="5 out of 5 stars." style="width:100% !important;" class="bv-rating-max bv-rating-stars bv-rating-stars-on" aria-hidden="true"> ☆☆☆☆☆ </abbr> <span class="bv-off-screen">5 out of 5 stars.</span> </span> </span>    <div class="bv-content-meta-wrapper"> <div class="bv-content-meta" role="presentation"> <div class="bv-content-reference-data bv-content-author-name">           <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" itemprop="author" onclick="return false;"> <h3>Trudowitz</h3> </button>             <div class="bv-content-datetime" role="presentation"> <meta itemprop="dateCreated" content="2019-03-09">  <meta itemprop="datePublished" content="2019-03-09">  <span class="bv-content-datetime-dot" aria-hidden="true">·</span> <span class="bv-content-datetime-stamp">2 months ago &nbsp;</span> </div>  </div> </div> </div>  </div>  <div class="bv-content-title-container">  <h4 class="bv-content-title" itemprop="headline">    Perfect cami   </h4>    </div>    </div>  </div>     <div class="bv-content-details-offset-on">    <div class="bv-content-summary"> <div class="bv-content-summary-body" itemprop="reviewBody">  <div class="bv-content-summary-body-text">     <p>I bought this a couple weeks ago and am so happy with it. In fact, bought all of the different colors. Love the lightweight fabric, the soft feel of it, and the length is perfect. Not to long, not to short. Hope some spring colors come out. Will def. Buy more</p>      </div>   <div class="bv-content-data">      <div class="bv-content-product-questions">  <dl class="bv-content-data-product-questions"> <dt class="bv-content-data-label-container"> <span class="bv-content-data-label">By submitting a review, each client received a sweepstakes entry.</span> </dt> <dd class="bv-content-data-value">Yes</dd> </dl>  </div>  <div class="bv-content-tag-dimensions">  </div>    <dl class="bv-content-data-recommend-yes"> <dt class="bv-content-data-label-container"> <span class="bv-content-data-icon" aria-hidden="true">✔</span> <span class="bv-content-data-label">Yes</span>, </dt> <dd class="bv-content-data-value">  I recommend this product. </dd> </dl>             </div>  </div> </div> </div>  <div class="bv-content-details-container">    <div class="bv-secondary-ratings" role="presentation"> <dl class="bv-content-secondary-ratings">   <dt class="bv-content-secondary-ratings-label">How It Fits</dt>  <dd class="bv-content-slider"> <span class="bv-content-slider-container"> <ul class="bv-content-slider-bar" role="presentation"> <li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li> </ul> <span class="bv-content-slider-halfway"></span> <div class="bv-content-slider-value-container"> <span class="bv-content-slider-value" style="margin-left:50% !important;"></span> </div> </span> <span class="bv-content-slider-sublabel1" aria-describedby="bv-rating-aria-description-230-sublabel1" aria-label="Rating of 1 means Fits Small"> Fits Small </span> <span class="bv-off-screen" id="bv-rating-aria-description-230-sublabel1">Rating of 1 means Fits Small</span> <span class="bv-content-slider-sublabel2" aria-describedby="bv-rating-aria-description-230-sublabel2" aria-label="Rating of 5 means Fits Large"> Fits Large </span> <span class="bv-off-screen" id="bv-rating-aria-description-230-sublabel2">Rating of 5 means Fits Large</span> <span class="bv-off-screen"> How It Fits, 3 out of 5</span>  </dd>    </dl> </div>     </div> </div> </div>   <div class="bv-content-actions-container bv-active-feedback">  <div data-bv-v="feedback:18" class="bv-feedback-container">
+   <span class="bv-off-screen bv-off-screen-positive-rating">3 people found this review helpful.</span> <span class="bv-off-screen bv-off-screen-negative-rating">0 people did not find this review helpful.</span> <dl class="bv-content-feedback-vote bv-content-feedback-vote-active"> <dt class="bv-content-feedback-vote-request"> <p>Was this helpful?</p> </dt> <dd class="bv-content-feedback-btn-container"> <button type="button" class="bv-content-btn bv-content-btn-feedback-yes bv-focusable" aria-label="Yes, review by Trudowitz is helpful." onclick="return false;"> <span aria-hidden="true"> Yes · <span class="bv-content-btn-count" aria-hidden="true">3</span> </span> <span class="bv-off-screen">3 people found this review helpful. Click to agree.</span> </button> <button type="button" class="bv-content-btn bv-content-btn-feedback-no bv-focusable" aria-label="No, review by Trudowitz is not helpful." onclick="return false;"> <span aria-hidden="true"> No · <span class="bv-content-btn-count" aria-hidden="true">0</span> </span> <span class="bv-off-screen">0 people did not find this review helpful. Click to agree.</span> </button> </dd> <dd class="bv-content-feedback-vote bv-content-feedback-vote-active"> <button type="button" class="bv-content-report-btn bv-focusable" aria-label="Mark Perfect cami by Trudowitz as inappropriate. " onclick="return false;">   Report  </button> </dd> </dl>   
+</div>    </div>    <div class="bv-inline-form-container"></div>  <div data-bv-v="secondaryContentList:16" class="bv-secondary-content-list">
+  <ol data-bv-v="secondaryContentItemCollection:17" class="bv-content-list bv-content-list-clientresponses">
+  
+</ol>  
+</div>   </div> 
+</li>  <li data-bv-v="contentItem:20" class="bv-content-item bv-content-top-review bv-content-review" itemprop="review" itemscope="" itemtype="http://schema.org/Review" data-content-id="Reviews-206868996">
+   <div data-bv-v="inlineProfile:24" class="bv-author-profile">
+ <div class="bv-inline-profile"> <div class="bv-author-avatar">  <div class="bv-author-avatar-nickname"> <div class="bv-content-author-name" role="presentation">          <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" onclick="return false;"> <h3>Winter Warm</h3> </button>            </div>  </div> </div> <div class="bv-popup-prosnap-userinfo bv-contains-profile-button"> <div class="bv-content-author-name" role="presentation">          <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" onclick="return false;"> <h3>Winter Warm</h3> </button>            </div>    <div class="bv-author-location">  <span> Wisconsin </span>  </div>    <div class="bv-author-userstats"> <ul class="bv-author-userstats-list" role="presentation">  <li class="bv-author-userstats-reviews" role="presentation">  <span class="bv-author-userstats-data">Review</span> <span class="bv-author-userstats-value">1</span> </li>      <li class="bv-author-userstats-votes" role="presentation">  <span class="bv-author-userstats-data"> Vote </span> <span class="bv-author-userstats-value">1</span> </li>   </ul> </div>                      <div class="bv-author-userinfo">  <ul role="presentation">  <li class="bv-author-cdv bv-first " role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Age</span> <span class="bv-author-userinfo-value">55-64</span> </li>  <li class="bv-author-cdv  " role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Style</span> <span class="bv-author-userinfo-value">Laid-back – cool and casual</span> </li>  <li class="bv-author-cdv  bv-last" role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Body Type</span> <span class="bv-author-userinfo-value">Slender</span> </li>  </ul>  </div>   </div>  </div> 
+</div>    <meta itemprop="itemReviewed" content="V-Neck Clean Cami">     <div class="bv-content-item-author-profile-offset bv-content-item-author-profile-offset-on">    <div class="bv-content-container"> <div class="bv-content-core "> <div class="bv-content-header">        <div class="bv-content-data-summary">    <div class="bv-content-badges-container">    <dl class="bv-badge-summary bv-badge-first bv-badge-top-three" role="presentation">   <dd title="By submitting a review, each client received a sweepstakes entry" class="bv-badge bv-badge-content bv-badge-content-incentivizedreview" role="presentation"> <span class="bv-badge-icon" aria-hidden="true"> ⊞ </span> <span class="bv-badge-label">Sweepstakes Entry</span> </dd>   </dl>  <dl class="bv-badge-summary bv-badge-top-three" role="presentation">    <dd title="This reviewer purchased the product." class="bv-badge bv-badge-content bv-badge-content-verifiedpurchaser" role="presentation"> <span class="bv-badge-icon" aria-hidden="true"> * </span> <span class="bv-badge-label"> Verified Purchaser </span> </dd>   </dl>  </div>   <div class="bv-content-header-meta">     <span class="bv-content-rating bv-rating-ratio" itemprop="reviewRating" itemscope="" itemtype="http://schema.org/Rating"> <meta itemprop="ratingValue" content="5"> <meta itemprop="bestRating" content="5"> <span class="bv-rating-stars-container"> <abbr title="5 out of 5 stars." class="bv-rating bv-rating-stars bv-rating-stars-off" aria-hidden="true"> ☆☆☆☆☆ </abbr> <abbr title="5 out of 5 stars." style="width:100% !important;" class="bv-rating-max bv-rating-stars bv-rating-stars-on" aria-hidden="true"> ☆☆☆☆☆ </abbr> <span class="bv-off-screen">5 out of 5 stars.</span> </span> </span>    <div class="bv-content-meta-wrapper"> <div class="bv-content-meta" role="presentation"> <div class="bv-content-reference-data bv-content-author-name">           <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" itemprop="author" onclick="return false;"> <h3>Winter Warm</h3> </button>             <div class="bv-content-datetime" role="presentation"> <meta itemprop="dateCreated" content="2019-02-11">  <meta itemprop="datePublished" content="2019-02-11">  <span class="bv-content-datetime-dot" aria-hidden="true">·</span> <span class="bv-content-datetime-stamp">3 months ago &nbsp;</span> </div>  </div> </div> </div>  </div>  <div class="bv-content-title-container">  <h4 class="bv-content-title" itemprop="headline">    Love this cami so much, I ordered several.   </h4>    </div>    </div>  </div>     <div class="bv-content-details-offset-on">    <div class="bv-content-summary"> <div class="bv-content-summary-body" itemprop="reviewBody">  <div class="bv-content-summary-body-text">     <p>Fits great. Warm. Love the extra length. V-neck works great for layering with everything.</p>      </div>   <div class="bv-content-data">      <div class="bv-content-product-questions">  <dl class="bv-content-data-product-questions"> <dt class="bv-content-data-label-container"> <span class="bv-content-data-label">By submitting a review, each client received a sweepstakes entry.</span> </dt> <dd class="bv-content-data-value">Yes</dd> </dl>  </div>  <div class="bv-content-tag-dimensions">  </div>    <dl class="bv-content-data-recommend-yes"> <dt class="bv-content-data-label-container"> <span class="bv-content-data-icon" aria-hidden="true">✔</span> <span class="bv-content-data-label">Yes</span>, </dt> <dd class="bv-content-data-value">  I recommend this product. </dd> </dl>             </div>  </div> </div> </div>  <div class="bv-content-details-container">    <div class="bv-secondary-ratings" role="presentation"> <dl class="bv-content-secondary-ratings">   <dt class="bv-content-secondary-ratings-label">How It Fits</dt>  <dd class="bv-content-slider"> <span class="bv-content-slider-container"> <ul class="bv-content-slider-bar" role="presentation"> <li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li> </ul> <span class="bv-content-slider-halfway"></span> <div class="bv-content-slider-value-container"> <span class="bv-content-slider-value" style="margin-left:50% !important;"></span> </div> </span> <span class="bv-content-slider-sublabel1" aria-describedby="bv-rating-aria-description-231-sublabel1" aria-label="Rating of 1 means Fits Small"> Fits Small </span> <span class="bv-off-screen" id="bv-rating-aria-description-231-sublabel1">Rating of 1 means Fits Small</span> <span class="bv-content-slider-sublabel2" aria-describedby="bv-rating-aria-description-231-sublabel2" aria-label="Rating of 5 means Fits Large"> Fits Large </span> <span class="bv-off-screen" id="bv-rating-aria-description-231-sublabel2">Rating of 5 means Fits Large</span> <span class="bv-off-screen"> How It Fits, 3 out of 5</span>  </dd>    </dl> </div>     </div> </div> </div>   <div class="bv-content-actions-container bv-active-feedback">  <div data-bv-v="feedback:23" class="bv-feedback-container">
+   <span class="bv-off-screen bv-off-screen-positive-rating">1 person found this review helpful.</span> <span class="bv-off-screen bv-off-screen-negative-rating">0 people did not find this review helpful.</span> <dl class="bv-content-feedback-vote bv-content-feedback-vote-active"> <dt class="bv-content-feedback-vote-request"> <p>Was this helpful?</p> </dt> <dd class="bv-content-feedback-btn-container"> <button type="button" class="bv-content-btn bv-content-btn-feedback-yes bv-focusable" aria-label="Yes, review by Winter Warm is helpful." onclick="return false;"> <span aria-hidden="true"> Yes · <span class="bv-content-btn-count" aria-hidden="true">1</span> </span> <span class="bv-off-screen">1 person found this review helpful. Click to agree.</span> </button> <button type="button" class="bv-content-btn bv-content-btn-feedback-no bv-focusable" aria-label="No, review by Winter Warm is not helpful." onclick="return false;"> <span aria-hidden="true"> No · <span class="bv-content-btn-count" aria-hidden="true">0</span> </span> <span class="bv-off-screen">0 people did not find this review helpful. Click to agree.</span> </button> </dd> <dd class="bv-content-feedback-vote bv-content-feedback-vote-active"> <button type="button" class="bv-content-report-btn bv-focusable" aria-label="Mark Love this cami so much, I ordered several. by Winter Warm as inappropriate. " onclick="return false;">   Report  </button> </dd> </dl>   
+</div>    </div>    <div class="bv-inline-form-container"></div>  <div data-bv-v="secondaryContentList:21" class="bv-secondary-content-list">
+  <ol data-bv-v="secondaryContentItemCollection:22" class="bv-content-list bv-content-list-clientresponses">
+  
+</ol>  
+</div>   </div> 
+</li>  <li data-bv-v="contentItem:25" class="bv-content-item bv-content-top-review bv-content-review" itemprop="review" itemscope="" itemtype="http://schema.org/Review" data-content-id="Reviews-206868936">
+   <div data-bv-v="inlineProfile:29" class="bv-author-profile">
+ <div class="bv-inline-profile"> <div class="bv-author-avatar">  <div class="bv-author-avatar-nickname"> <div class="bv-content-author-name" role="presentation">          <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" onclick="return false;"> <h3>Jacktown</h3> </button>            </div>  </div> </div> <div class="bv-popup-prosnap-userinfo bv-contains-profile-button"> <div class="bv-content-author-name" role="presentation">          <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" onclick="return false;"> <h3>Jacktown</h3> </button>            </div>    <div class="bv-author-location">  <span> Mississippi </span>  </div>    <div class="bv-author-userstats"> <ul class="bv-author-userstats-list" role="presentation">  <li class="bv-author-userstats-reviews" role="presentation">  <span class="bv-author-userstats-data">Reviews</span> <span class="bv-author-userstats-value">4</span> </li>      <li class="bv-author-userstats-votes" role="presentation">  <span class="bv-author-userstats-data"> Votes </span> <span class="bv-author-userstats-value">10</span> </li>   </ul> </div>                      <div class="bv-author-userinfo">  <ul role="presentation">  <li class="bv-author-cdv bv-first " role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Age</span> <span class="bv-author-userinfo-value">55-64</span> </li>  <li class="bv-author-cdv  " role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Style</span> <span class="bv-author-userinfo-value">Laid-back – cool and casual</span> </li>  <li class="bv-author-cdv  bv-last" role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Body Type</span> <span class="bv-author-userinfo-value">Slender</span> </li>  </ul>  </div>   </div>  </div> 
+</div>    <meta itemprop="itemReviewed" content="V-Neck Clean Cami">     <div class="bv-content-item-author-profile-offset bv-content-item-author-profile-offset-on">    <div class="bv-content-container"> <div class="bv-content-core "> <div class="bv-content-header">        <div class="bv-content-data-summary">    <div class="bv-content-badges-container">    <dl class="bv-badge-summary bv-badge-first bv-badge-top-three" role="presentation">   <dd title="By submitting a review, each client received a sweepstakes entry" class="bv-badge bv-badge-content bv-badge-content-incentivizedreview" role="presentation"> <span class="bv-badge-icon" aria-hidden="true"> ⊞ </span> <span class="bv-badge-label">Sweepstakes Entry</span> </dd>   </dl>  <dl class="bv-badge-summary bv-badge-top-three" role="presentation">    <dd title="This reviewer purchased the product." class="bv-badge bv-badge-content bv-badge-content-verifiedpurchaser" role="presentation"> <span class="bv-badge-icon" aria-hidden="true"> * </span> <span class="bv-badge-label"> Verified Purchaser </span> </dd>   </dl>  </div>   <div class="bv-content-header-meta">     <span class="bv-content-rating bv-rating-ratio" itemprop="reviewRating" itemscope="" itemtype="http://schema.org/Rating"> <meta itemprop="ratingValue" content="5"> <meta itemprop="bestRating" content="5"> <span class="bv-rating-stars-container"> <abbr title="5 out of 5 stars." class="bv-rating bv-rating-stars bv-rating-stars-off" aria-hidden="true"> ☆☆☆☆☆ </abbr> <abbr title="5 out of 5 stars." style="width:100% !important;" class="bv-rating-max bv-rating-stars bv-rating-stars-on" aria-hidden="true"> ☆☆☆☆☆ </abbr> <span class="bv-off-screen">5 out of 5 stars.</span> </span> </span>    <div class="bv-content-meta-wrapper"> <div class="bv-content-meta" role="presentation"> <div class="bv-content-reference-data bv-content-author-name">           <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" itemprop="author" onclick="return false;"> <h3>Jacktown</h3> </button>             <div class="bv-content-datetime" role="presentation"> <meta itemprop="dateCreated" content="2019-02-11">  <meta itemprop="datePublished" content="2019-02-11">  <span class="bv-content-datetime-dot" aria-hidden="true">·</span> <span class="bv-content-datetime-stamp">3 months ago &nbsp;</span> </div>  </div> </div> </div>  </div>  <div class="bv-content-title-container">  <h4 class="bv-content-title" itemprop="headline">    Feels so good   </h4>    </div>    </div>  </div>     <div class="bv-content-details-offset-on">    <div class="bv-content-summary"> <div class="bv-content-summary-body" itemprop="reviewBody">  <div class="bv-content-summary-body-text">     <p>Good solid staple.  I got the nude and the shade is nice, smooth substantial fabric feels good.  Nice and long, so if you're looking for a cropped length, keep looking.</p>      </div>   <div class="bv-content-data">      <div class="bv-content-product-questions">  <dl class="bv-content-data-product-questions"> <dt class="bv-content-data-label-container"> <span class="bv-content-data-label">By submitting a review, each client received a sweepstakes entry.</span> </dt> <dd class="bv-content-data-value">Yes</dd> </dl>  </div>  <div class="bv-content-tag-dimensions">  </div>    <dl class="bv-content-data-recommend-yes"> <dt class="bv-content-data-label-container"> <span class="bv-content-data-icon" aria-hidden="true">✔</span> <span class="bv-content-data-label">Yes</span>, </dt> <dd class="bv-content-data-value">  I recommend this product. </dd> </dl>             </div>  </div> </div> </div>  <div class="bv-content-details-container">    <div class="bv-secondary-ratings" role="presentation"> <dl class="bv-content-secondary-ratings">   <dt class="bv-content-secondary-ratings-label">How It Fits</dt>  <dd class="bv-content-slider"> <span class="bv-content-slider-container"> <ul class="bv-content-slider-bar" role="presentation"> <li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li> </ul> <span class="bv-content-slider-halfway"></span> <div class="bv-content-slider-value-container"> <span class="bv-content-slider-value" style="margin-left:50% !important;"></span> </div> </span> <span class="bv-content-slider-sublabel1" aria-describedby="bv-rating-aria-description-232-sublabel1" aria-label="Rating of 1 means Fits Small"> Fits Small </span> <span class="bv-off-screen" id="bv-rating-aria-description-232-sublabel1">Rating of 1 means Fits Small</span> <span class="bv-content-slider-sublabel2" aria-describedby="bv-rating-aria-description-232-sublabel2" aria-label="Rating of 5 means Fits Large"> Fits Large </span> <span class="bv-off-screen" id="bv-rating-aria-description-232-sublabel2">Rating of 5 means Fits Large</span> <span class="bv-off-screen"> How It Fits, 3 out of 5</span>  </dd>    </dl> </div>     </div> </div> </div>   <div class="bv-content-actions-container bv-active-feedback">  <div data-bv-v="feedback:28" class="bv-feedback-container">
+   <span class="bv-off-screen bv-off-screen-positive-rating">2 people found this review helpful.</span> <span class="bv-off-screen bv-off-screen-negative-rating">0 people did not find this review helpful.</span> <dl class="bv-content-feedback-vote bv-content-feedback-vote-active"> <dt class="bv-content-feedback-vote-request"> <p>Was this helpful?</p> </dt> <dd class="bv-content-feedback-btn-container"> <button type="button" class="bv-content-btn bv-content-btn-feedback-yes bv-focusable" aria-label="Yes, review by Jacktown is helpful." onclick="return false;"> <span aria-hidden="true"> Yes · <span class="bv-content-btn-count" aria-hidden="true">2</span> </span> <span class="bv-off-screen">2 people found this review helpful. Click to agree.</span> </button> <button type="button" class="bv-content-btn bv-content-btn-feedback-no bv-focusable" aria-label="No, review by Jacktown is not helpful." onclick="return false;"> <span aria-hidden="true"> No · <span class="bv-content-btn-count" aria-hidden="true">0</span> </span> <span class="bv-off-screen">0 people did not find this review helpful. Click to agree.</span> </button> </dd> <dd class="bv-content-feedback-vote bv-content-feedback-vote-active"> <button type="button" class="bv-content-report-btn bv-focusable" aria-label="Mark Feels so good by Jacktown as inappropriate. " onclick="return false;">   Report  </button> </dd> </dl>   
+</div>    </div>    <div class="bv-inline-form-container"></div>  <div data-bv-v="secondaryContentList:26" class="bv-secondary-content-list">
+  <ol data-bv-v="secondaryContentItemCollection:27" class="bv-content-list bv-content-list-clientresponses">
+  
+</ol>  
+</div>   </div> 
+</li>  <li data-bv-v="contentItem:30" class="bv-content-item bv-content-top-review bv-content-review" itemprop="review" itemscope="" itemtype="http://schema.org/Review" data-content-id="Reviews-206132695">
+   <div data-bv-v="inlineProfile:34" class="bv-author-profile">
+ <div class="bv-inline-profile"> <div class="bv-author-avatar">  <div class="bv-author-avatar-nickname"> <div class="bv-content-author-name" role="presentation">          <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" onclick="return false;"> <h3>Mjj22</h3> </button>            </div>  </div> </div> <div class="bv-popup-prosnap-userinfo bv-contains-profile-button"> <div class="bv-content-author-name" role="presentation">          <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" onclick="return false;"> <h3>Mjj22</h3> </button>            </div>    <div class="bv-author-location">  <span> Rhode Island </span>  </div>    <div class="bv-author-userstats"> <ul class="bv-author-userstats-list" role="presentation">  <li class="bv-author-userstats-reviews" role="presentation">  <span class="bv-author-userstats-data">Review</span> <span class="bv-author-userstats-value">1</span> </li>      <li class="bv-author-userstats-votes" role="presentation">  <span class="bv-author-userstats-data"> Vote </span> <span class="bv-author-userstats-value">1</span> </li>   </ul> </div>                      <div class="bv-author-userinfo">  <ul role="presentation">  <li class="bv-author-cdv bv-first " role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Age</span> <span class="bv-author-userinfo-value">35-44</span> </li>  <li class="bv-author-cdv  " role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Style</span> <span class="bv-author-userinfo-value">Laid-back – cool and casual</span> </li>  <li class="bv-author-cdv  bv-last" role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Body Type</span> <span class="bv-author-userinfo-value">Curvy</span> </li>  </ul>  </div>   </div>  </div> 
+</div>    <meta itemprop="itemReviewed" content="V-Neck Clean Cami">     <div class="bv-content-item-author-profile-offset bv-content-item-author-profile-offset-on">    <div class="bv-content-container"> <div class="bv-content-core "> <div class="bv-content-header">        <div class="bv-content-data-summary">    <div class="bv-content-badges-container">    <dl class="bv-badge-summary bv-badge-first bv-badge-top-three" role="presentation">   <dd title="By submitting a review, each client received a sweepstakes entry" class="bv-badge bv-badge-content bv-badge-content-incentivizedreview" role="presentation"> <span class="bv-badge-icon" aria-hidden="true"> ⊞ </span> <span class="bv-badge-label">Sweepstakes Entry</span> </dd>   </dl>  <dl class="bv-badge-summary bv-badge-top-three" role="presentation">    <dd title="This reviewer purchased the product." class="bv-badge bv-badge-content bv-badge-content-verifiedpurchaser" role="presentation"> <span class="bv-badge-icon" aria-hidden="true"> * </span> <span class="bv-badge-label"> Verified Purchaser </span> </dd>   </dl>  </div>   <div class="bv-content-header-meta">     <span class="bv-content-rating bv-rating-ratio" itemprop="reviewRating" itemscope="" itemtype="http://schema.org/Rating"> <meta itemprop="ratingValue" content="5"> <meta itemprop="bestRating" content="5"> <span class="bv-rating-stars-container"> <abbr title="5 out of 5 stars." class="bv-rating bv-rating-stars bv-rating-stars-off" aria-hidden="true"> ☆☆☆☆☆ </abbr> <abbr title="5 out of 5 stars." style="width:100% !important;" class="bv-rating-max bv-rating-stars bv-rating-stars-on" aria-hidden="true"> ☆☆☆☆☆ </abbr> <span class="bv-off-screen">5 out of 5 stars.</span> </span> </span>    <div class="bv-content-meta-wrapper"> <div class="bv-content-meta" role="presentation"> <div class="bv-content-reference-data bv-content-author-name">           <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" itemprop="author" onclick="return false;"> <h3>Mjj22</h3> </button>             <div class="bv-content-datetime" role="presentation"> <meta itemprop="dateCreated" content="2019-01-14">  <meta itemprop="datePublished" content="2019-01-14">  <span class="bv-content-datetime-dot" aria-hidden="true">·</span> <span class="bv-content-datetime-stamp">4 months ago &nbsp;</span> </div>  </div> </div> </div>  </div>  <div class="bv-content-title-container">  <h4 class="bv-content-title" itemprop="headline">    Great fit   </h4>    </div>    </div>  </div>     <div class="bv-content-details-offset-on">    <div class="bv-content-summary"> <div class="bv-content-summary-body" itemprop="reviewBody">  <div class="bv-content-summary-body-text">     <p>I bought this a few weeks ago and I love the Loft camis. I have several different colors and they are so soft and comfortable.</p>      </div>   <div class="bv-content-data">      <div class="bv-content-product-questions">  <dl class="bv-content-data-product-questions"> <dt class="bv-content-data-label-container"> <span class="bv-content-data-label">By submitting a review, each client received a sweepstakes entry.</span> </dt> <dd class="bv-content-data-value">Yes</dd> </dl>  </div>  <div class="bv-content-tag-dimensions">  </div>    <dl class="bv-content-data-recommend-yes"> <dt class="bv-content-data-label-container"> <span class="bv-content-data-icon" aria-hidden="true">✔</span> <span class="bv-content-data-label">Yes</span>, </dt> <dd class="bv-content-data-value">  I recommend this product. </dd> </dl>             </div>  </div> </div> </div>  <div class="bv-content-details-container">    <div class="bv-secondary-ratings" role="presentation"> <dl class="bv-content-secondary-ratings">   <dt class="bv-content-secondary-ratings-label">How It Fits</dt>  <dd class="bv-content-slider"> <span class="bv-content-slider-container"> <ul class="bv-content-slider-bar" role="presentation"> <li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li> </ul> <span class="bv-content-slider-halfway"></span> <div class="bv-content-slider-value-container"> <span class="bv-content-slider-value" style="margin-left:50% !important;"></span> </div> </span> <span class="bv-content-slider-sublabel1" aria-describedby="bv-rating-aria-description-233-sublabel1" aria-label="Rating of 1 means Fits Small"> Fits Small </span> <span class="bv-off-screen" id="bv-rating-aria-description-233-sublabel1">Rating of 1 means Fits Small</span> <span class="bv-content-slider-sublabel2" aria-describedby="bv-rating-aria-description-233-sublabel2" aria-label="Rating of 5 means Fits Large"> Fits Large </span> <span class="bv-off-screen" id="bv-rating-aria-description-233-sublabel2">Rating of 5 means Fits Large</span> <span class="bv-off-screen"> How It Fits, 3 out of 5</span>  </dd>    </dl> </div>     </div> </div> </div>   <div class="bv-content-actions-container bv-active-feedback">  <div data-bv-v="feedback:33" class="bv-feedback-container">
+   <span class="bv-off-screen bv-off-screen-positive-rating">1 person found this review helpful.</span> <span class="bv-off-screen bv-off-screen-negative-rating">0 people did not find this review helpful.</span> <dl class="bv-content-feedback-vote bv-content-feedback-vote-active"> <dt class="bv-content-feedback-vote-request"> <p>Was this helpful?</p> </dt> <dd class="bv-content-feedback-btn-container"> <button type="button" class="bv-content-btn bv-content-btn-feedback-yes bv-focusable" aria-label="Yes, review by Mjj22 is helpful." onclick="return false;"> <span aria-hidden="true"> Yes · <span class="bv-content-btn-count" aria-hidden="true">1</span> </span> <span class="bv-off-screen">1 person found this review helpful. Click to agree.</span> </button> <button type="button" class="bv-content-btn bv-content-btn-feedback-no bv-focusable" aria-label="No, review by Mjj22 is not helpful." onclick="return false;"> <span aria-hidden="true"> No · <span class="bv-content-btn-count" aria-hidden="true">0</span> </span> <span class="bv-off-screen">0 people did not find this review helpful. Click to agree.</span> </button> </dd> <dd class="bv-content-feedback-vote bv-content-feedback-vote-active"> <button type="button" class="bv-content-report-btn bv-focusable" aria-label="Mark Great fit by Mjj22 as inappropriate. " onclick="return false;">   Report  </button> </dd> </dl>   
+</div>    </div>    <div class="bv-inline-form-container"></div>  <div data-bv-v="secondaryContentList:31" class="bv-secondary-content-list">
+  <ol data-bv-v="secondaryContentItemCollection:32" class="bv-content-list bv-content-list-clientresponses">
+  
+</ol>  
+</div>   </div> 
+</li>  <li data-bv-v="contentItem:35" class="bv-content-item bv-content-top-review bv-content-review" itemprop="review" itemscope="" itemtype="http://schema.org/Review" data-content-id="Reviews-206080014">
+   <div data-bv-v="inlineProfile:39" class="bv-author-profile">
+ <div class="bv-inline-profile"> <div class="bv-author-avatar">  <div class="bv-author-avatar-nickname"> <div class="bv-content-author-name" role="presentation">          <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" onclick="return false;"> <h3>Jen LB</h3> </button>            </div>  </div> </div> <div class="bv-popup-prosnap-userinfo bv-contains-profile-button"> <div class="bv-content-author-name" role="presentation">          <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" onclick="return false;"> <h3>Jen LB</h3> </button>            </div>    <div class="bv-author-location">  <span> Lexington, KY </span>  </div>    <div class="bv-author-userstats"> <ul class="bv-author-userstats-list" role="presentation">  <li class="bv-author-userstats-reviews" role="presentation">  <span class="bv-author-userstats-data">Reviews</span> <span class="bv-author-userstats-value">27</span> </li>      <li class="bv-author-userstats-votes" role="presentation">  <span class="bv-author-userstats-data"> Votes </span> <span class="bv-author-userstats-value">20</span> </li>   </ul> </div>                      <div class="bv-author-userinfo">  <ul role="presentation">  <li class="bv-author-cdv bv-first " role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Age</span> <span class="bv-author-userinfo-value">45-54</span> </li>  <li class="bv-author-cdv  " role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Style</span> <span class="bv-author-userinfo-value">Laid-back – cool and casual</span> </li>  <li class="bv-author-cdv  bv-last" role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Body Type</span> <span class="bv-author-userinfo-value">Curvy</span> </li>  </ul>  </div>   </div>  </div> 
+</div>    <meta itemprop="itemReviewed" content="V-Neck Clean Cami">     <div class="bv-content-item-author-profile-offset bv-content-item-author-profile-offset-on">    <div class="bv-content-container"> <div class="bv-content-core "> <div class="bv-content-header">        <div class="bv-content-data-summary">    <div class="bv-content-badges-container">    <dl class="bv-badge-summary bv-badge-first bv-badge-top-three" role="presentation">   <dd title="By submitting a review, each client received a sweepstakes entry" class="bv-badge bv-badge-content bv-badge-content-incentivizedreview" role="presentation"> <span class="bv-badge-icon" aria-hidden="true"> ⊞ </span> <span class="bv-badge-label">Sweepstakes Entry</span> </dd>   </dl>  <dl class="bv-badge-summary bv-badge-top-three" role="presentation">    <dd title="This reviewer purchased the product." class="bv-badge bv-badge-content bv-badge-content-verifiedpurchaser" role="presentation"> <span class="bv-badge-icon" aria-hidden="true"> * </span> <span class="bv-badge-label"> Verified Purchaser </span> </dd>   </dl>  </div>   <div class="bv-content-header-meta">     <span class="bv-content-rating bv-rating-ratio" itemprop="reviewRating" itemscope="" itemtype="http://schema.org/Rating"> <meta itemprop="ratingValue" content="5"> <meta itemprop="bestRating" content="5"> <span class="bv-rating-stars-container"> <abbr title="5 out of 5 stars." class="bv-rating bv-rating-stars bv-rating-stars-off" aria-hidden="true"> ☆☆☆☆☆ </abbr> <abbr title="5 out of 5 stars." style="width:100% !important;" class="bv-rating-max bv-rating-stars bv-rating-stars-on" aria-hidden="true"> ☆☆☆☆☆ </abbr> <span class="bv-off-screen">5 out of 5 stars.</span> </span> </span>    <div class="bv-content-meta-wrapper"> <div class="bv-content-meta" role="presentation"> <div class="bv-content-reference-data bv-content-author-name">           <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" itemprop="author" onclick="return false;"> <h3>Jen LB</h3> </button>             <div class="bv-content-datetime" role="presentation"> <meta itemprop="dateCreated" content="2019-01-11">  <meta itemprop="datePublished" content="2019-01-11">  <span class="bv-content-datetime-dot" aria-hidden="true">·</span> <span class="bv-content-datetime-stamp">4 months ago &nbsp;</span> </div>  </div> </div> </div>  </div>  <div class="bv-content-title-container">  <h4 class="bv-content-title" itemprop="headline">    great for layering   </h4>    </div>    </div>  </div>     <div class="bv-content-details-offset-on">    <div class="bv-content-summary"> <div class="bv-content-summary-body" itemprop="reviewBody">  <div class="bv-content-summary-body-text">     <p>I purchased this to wear under a sheer sweater.  It is a great layering cami.</p>      </div>   <div class="bv-content-data">      <div class="bv-content-product-questions">  <dl class="bv-content-data-product-questions"> <dt class="bv-content-data-label-container"> <span class="bv-content-data-label">By submitting a review, each client received a sweepstakes entry.</span> </dt> <dd class="bv-content-data-value">Yes</dd> </dl>  </div>  <div class="bv-content-tag-dimensions">  </div>    <dl class="bv-content-data-recommend-yes"> <dt class="bv-content-data-label-container"> <span class="bv-content-data-icon" aria-hidden="true">✔</span> <span class="bv-content-data-label">Yes</span>, </dt> <dd class="bv-content-data-value">  I recommend this product. </dd> </dl>             </div>  </div> </div> </div>  <div class="bv-content-details-container">    <div class="bv-secondary-ratings" role="presentation"> <dl class="bv-content-secondary-ratings">   <dt class="bv-content-secondary-ratings-label">How It Fits</dt>  <dd class="bv-content-slider"> <span class="bv-content-slider-container"> <ul class="bv-content-slider-bar" role="presentation"> <li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li> </ul> <span class="bv-content-slider-halfway"></span> <div class="bv-content-slider-value-container"> <span class="bv-content-slider-value" style="margin-left:50% !important;"></span> </div> </span> <span class="bv-content-slider-sublabel1" aria-describedby="bv-rating-aria-description-234-sublabel1" aria-label="Rating of 1 means Fits Small"> Fits Small </span> <span class="bv-off-screen" id="bv-rating-aria-description-234-sublabel1">Rating of 1 means Fits Small</span> <span class="bv-content-slider-sublabel2" aria-describedby="bv-rating-aria-description-234-sublabel2" aria-label="Rating of 5 means Fits Large"> Fits Large </span> <span class="bv-off-screen" id="bv-rating-aria-description-234-sublabel2">Rating of 5 means Fits Large</span> <span class="bv-off-screen"> How It Fits, 3 out of 5</span>  </dd>    </dl> </div>     </div> </div> </div>   <div class="bv-content-actions-container bv-active-feedback">  <div data-bv-v="feedback:38" class="bv-feedback-container">
+   <span class="bv-off-screen bv-off-screen-positive-rating">1 person found this review helpful.</span> <span class="bv-off-screen bv-off-screen-negative-rating">0 people did not find this review helpful.</span> <dl class="bv-content-feedback-vote bv-content-feedback-vote-active"> <dt class="bv-content-feedback-vote-request"> <p>Was this helpful?</p> </dt> <dd class="bv-content-feedback-btn-container"> <button type="button" class="bv-content-btn bv-content-btn-feedback-yes bv-focusable" aria-label="Yes, review by Jen LB is helpful." onclick="return false;"> <span aria-hidden="true"> Yes · <span class="bv-content-btn-count" aria-hidden="true">1</span> </span> <span class="bv-off-screen">1 person found this review helpful. Click to agree.</span> </button> <button type="button" class="bv-content-btn bv-content-btn-feedback-no bv-focusable" aria-label="No, review by Jen LB is not helpful." onclick="return false;"> <span aria-hidden="true"> No · <span class="bv-content-btn-count" aria-hidden="true">0</span> </span> <span class="bv-off-screen">0 people did not find this review helpful. Click to agree.</span> </button> </dd> <dd class="bv-content-feedback-vote bv-content-feedback-vote-active"> <button type="button" class="bv-content-report-btn bv-focusable" aria-label="Mark great for layering by Jen LB as inappropriate. " onclick="return false;">   Report  </button> </dd> </dl>   
+</div>    </div>    <div class="bv-inline-form-container"></div>  <div data-bv-v="secondaryContentList:36" class="bv-secondary-content-list">
+  <ol data-bv-v="secondaryContentItemCollection:37" class="bv-content-list bv-content-list-clientresponses">
+  
+</ol>  
+</div>   </div> 
+</li>  <li data-bv-v="contentItem:40" class="bv-content-item bv-content-top-review bv-content-review" itemprop="review" itemscope="" itemtype="http://schema.org/Review" data-content-id="Reviews-205899753">
+   <div data-bv-v="inlineProfile:44" class="bv-author-profile">
+ <div class="bv-inline-profile"> <div class="bv-author-avatar">  <div class="bv-author-avatar-nickname"> <div class="bv-content-author-name" role="presentation">          <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" onclick="return false;"> <h3>Gagrlinla</h3> </button>            </div>  </div> </div> <div class="bv-popup-prosnap-userinfo bv-contains-profile-button"> <div class="bv-content-author-name" role="presentation">          <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" onclick="return false;"> <h3>Gagrlinla</h3> </button>            </div>    <div class="bv-author-location">  <span> Los Angeles </span>  </div>    <div class="bv-author-userstats"> <ul class="bv-author-userstats-list" role="presentation">  <li class="bv-author-userstats-reviews" role="presentation">  <span class="bv-author-userstats-data">Reviews</span> <span class="bv-author-userstats-value">31</span> </li>      <li class="bv-author-userstats-votes" role="presentation">  <span class="bv-author-userstats-data"> Votes </span> <span class="bv-author-userstats-value">17</span> </li>   </ul> </div>                      <div class="bv-author-userinfo">  <ul role="presentation">  <li class="bv-author-cdv bv-first " role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Age</span> <span class="bv-author-userinfo-value">35-44</span> </li>  <li class="bv-author-cdv  " role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Style</span> <span class="bv-author-userinfo-value">Playful – fun and adventurous</span> </li>  <li class="bv-author-cdv  bv-last" role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Body Type</span> <span class="bv-author-userinfo-value">Curvy</span> </li>  </ul>  </div>   </div>  </div> 
+</div>    <meta itemprop="itemReviewed" content="V-Neck Clean Cami">     <div class="bv-content-item-author-profile-offset bv-content-item-author-profile-offset-on">    <div class="bv-content-container"> <div class="bv-content-core "> <div class="bv-content-header">        <div class="bv-content-data-summary">    <div class="bv-content-badges-container">    <dl class="bv-badge-summary bv-badge-first bv-badge-top-three" role="presentation">   <dd title="By submitting a review, each client received a sweepstakes entry" class="bv-badge bv-badge-content bv-badge-content-incentivizedreview" role="presentation"> <span class="bv-badge-icon" aria-hidden="true"> ⊞ </span> <span class="bv-badge-label">Sweepstakes Entry</span> </dd>   </dl>  <dl class="bv-badge-summary bv-badge-top-three" role="presentation">    <dd title="This reviewer purchased the product." class="bv-badge bv-badge-content bv-badge-content-verifiedpurchaser" role="presentation"> <span class="bv-badge-icon" aria-hidden="true"> * </span> <span class="bv-badge-label"> Verified Purchaser </span> </dd>   </dl>  </div>   <div class="bv-content-header-meta">     <span class="bv-content-rating bv-rating-ratio" itemprop="reviewRating" itemscope="" itemtype="http://schema.org/Rating"> <meta itemprop="ratingValue" content="5"> <meta itemprop="bestRating" content="5"> <span class="bv-rating-stars-container"> <abbr title="5 out of 5 stars." class="bv-rating bv-rating-stars bv-rating-stars-off" aria-hidden="true"> ☆☆☆☆☆ </abbr> <abbr title="5 out of 5 stars." style="width:100% !important;" class="bv-rating-max bv-rating-stars bv-rating-stars-on" aria-hidden="true"> ☆☆☆☆☆ </abbr> <span class="bv-off-screen">5 out of 5 stars.</span> </span> </span>    <div class="bv-content-meta-wrapper"> <div class="bv-content-meta" role="presentation"> <div class="bv-content-reference-data bv-content-author-name">           <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" itemprop="author" onclick="return false;"> <h3>Gagrlinla</h3> </button>             <div class="bv-content-datetime" role="presentation"> <meta itemprop="dateCreated" content="2019-01-04">  <meta itemprop="datePublished" content="2019-01-04">  <span class="bv-content-datetime-dot" aria-hidden="true">·</span> <span class="bv-content-datetime-stamp">4 months ago &nbsp;</span> </div>  </div> </div> </div>  </div>  <div class="bv-content-title-container">  <h4 class="bv-content-title" itemprop="headline">    Clean Cami   </h4>    </div>    </div>  </div>     <div class="bv-content-details-offset-on">    <div class="bv-content-summary"> <div class="bv-content-summary-body" itemprop="reviewBody">  <div class="bv-content-summary-body-text">     <p>These are the best camisoles. Just the right weight and the v-neck is perfect. Hopefully more colors will be added in this style.</p>      </div>   <div class="bv-content-data">      <div class="bv-content-product-questions">  <dl class="bv-content-data-product-questions"> <dt class="bv-content-data-label-container"> <span class="bv-content-data-label">By submitting a review, each client received a sweepstakes entry.</span> </dt> <dd class="bv-content-data-value">Yes</dd> </dl>  </div>  <div class="bv-content-tag-dimensions">  </div>    <dl class="bv-content-data-recommend-yes"> <dt class="bv-content-data-label-container"> <span class="bv-content-data-icon" aria-hidden="true">✔</span> <span class="bv-content-data-label">Yes</span>, </dt> <dd class="bv-content-data-value">  I recommend this product. </dd> </dl>             </div>  </div> </div> </div>  <div class="bv-content-details-container">    <div class="bv-secondary-ratings" role="presentation"> <dl class="bv-content-secondary-ratings">   <dt class="bv-content-secondary-ratings-label">How It Fits</dt>  <dd class="bv-content-slider"> <span class="bv-content-slider-container"> <ul class="bv-content-slider-bar" role="presentation"> <li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li> </ul> <span class="bv-content-slider-halfway"></span> <div class="bv-content-slider-value-container"> <span class="bv-content-slider-value" style="margin-left:50% !important;"></span> </div> </span> <span class="bv-content-slider-sublabel1" aria-describedby="bv-rating-aria-description-235-sublabel1" aria-label="Rating of 1 means Fits Small"> Fits Small </span> <span class="bv-off-screen" id="bv-rating-aria-description-235-sublabel1">Rating of 1 means Fits Small</span> <span class="bv-content-slider-sublabel2" aria-describedby="bv-rating-aria-description-235-sublabel2" aria-label="Rating of 5 means Fits Large"> Fits Large </span> <span class="bv-off-screen" id="bv-rating-aria-description-235-sublabel2">Rating of 5 means Fits Large</span> <span class="bv-off-screen"> How It Fits, 3 out of 5</span>  </dd>    </dl> </div>     </div> </div> </div>   <div class="bv-content-actions-container bv-active-feedback">  <div data-bv-v="feedback:43" class="bv-feedback-container">
+   <span class="bv-off-screen bv-off-screen-positive-rating">1 person found this review helpful.</span> <span class="bv-off-screen bv-off-screen-negative-rating">0 people did not find this review helpful.</span> <dl class="bv-content-feedback-vote bv-content-feedback-vote-active"> <dt class="bv-content-feedback-vote-request"> <p>Was this helpful?</p> </dt> <dd class="bv-content-feedback-btn-container"> <button type="button" class="bv-content-btn bv-content-btn-feedback-yes bv-focusable" aria-label="Yes, review by Gagrlinla is helpful." onclick="return false;"> <span aria-hidden="true"> Yes · <span class="bv-content-btn-count" aria-hidden="true">1</span> </span> <span class="bv-off-screen">1 person found this review helpful. Click to agree.</span> </button> <button type="button" class="bv-content-btn bv-content-btn-feedback-no bv-focusable" aria-label="No, review by Gagrlinla is not helpful." onclick="return false;"> <span aria-hidden="true"> No · <span class="bv-content-btn-count" aria-hidden="true">0</span> </span> <span class="bv-off-screen">0 people did not find this review helpful. Click to agree.</span> </button> </dd> <dd class="bv-content-feedback-vote bv-content-feedback-vote-active"> <button type="button" class="bv-content-report-btn bv-focusable" aria-label="Mark Clean Cami by Gagrlinla as inappropriate. " onclick="return false;">   Report  </button> </dd> </dl>   
+</div>    </div>    <div class="bv-inline-form-container"></div>  <div data-bv-v="secondaryContentList:41" class="bv-secondary-content-list">
+  <ol data-bv-v="secondaryContentItemCollection:42" class="bv-content-list bv-content-list-clientresponses">
+  
+</ol>  
+</div>   </div> 
+</li>  <li data-bv-v="contentItem:45" class="bv-content-item bv-content-top-review bv-content-review" itemprop="review" itemscope="" itemtype="http://schema.org/Review" data-content-id="Reviews-205889844">
+   <div data-bv-v="inlineProfile:49" class="bv-author-profile">
+ <div class="bv-inline-profile"> <div class="bv-author-avatar">  <div class="bv-author-avatar-nickname"> <div class="bv-content-author-name" role="presentation">          <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" onclick="return false;"> <h3>SeattleIsNotAlwaysRainy</h3> </button>            </div>  </div> </div> <div class="bv-popup-prosnap-userinfo bv-contains-profile-button"> <div class="bv-content-author-name" role="presentation">          <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" onclick="return false;"> <h3>SeattleIsNotAlwaysRainy</h3> </button>            </div>    <div class="bv-author-location">  </div>    <div class="bv-author-userstats"> <ul class="bv-author-userstats-list" role="presentation">  <li class="bv-author-userstats-reviews" role="presentation">  <span class="bv-author-userstats-data">Reviews</span> <span class="bv-author-userstats-value">10</span> </li>      <li class="bv-author-userstats-votes" role="presentation">  <span class="bv-author-userstats-data"> Votes </span> <span class="bv-author-userstats-value">7</span> </li>   </ul> </div>                      <div class="bv-author-userinfo">  <ul role="presentation">  <li class="bv-author-cdv bv-first " role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Age</span> <span class="bv-author-userinfo-value">25-34</span> </li>  <li class="bv-author-cdv  bv-last" role="presentation"> <!-- UIA-7763 - removed default display so only translated strings matched by FB will display; can't remove defaultDisplay field entirely due to compilation errors, so used a value of '' --> <span class="bv-author-userinfo-data">Body Type</span> <span class="bv-author-userinfo-value">Smaller on bottom than top</span> </li>  </ul>  </div>   </div>  </div> 
+</div>    <meta itemprop="itemReviewed" content="V-Neck Clean Cami">     <div class="bv-content-item-author-profile-offset bv-content-item-author-profile-offset-on">    <div class="bv-content-container"> <div class="bv-content-core "> <div class="bv-content-header">        <div class="bv-content-data-summary">    <div class="bv-content-badges-container">    <dl class="bv-badge-summary bv-badge-first bv-badge-top-three" role="presentation">   <dd title="By submitting a review, each client received a sweepstakes entry" class="bv-badge bv-badge-content bv-badge-content-incentivizedreview" role="presentation"> <span class="bv-badge-icon" aria-hidden="true"> ⊞ </span> <span class="bv-badge-label">Sweepstakes Entry</span> </dd>   </dl>  <dl class="bv-badge-summary bv-badge-top-three" role="presentation">    <dd title="This reviewer purchased the product." class="bv-badge bv-badge-content bv-badge-content-verifiedpurchaser" role="presentation"> <span class="bv-badge-icon" aria-hidden="true"> * </span> <span class="bv-badge-label"> Verified Purchaser </span> </dd>   </dl>  </div>   <div class="bv-content-header-meta">     <span class="bv-content-rating bv-rating-ratio" itemprop="reviewRating" itemscope="" itemtype="http://schema.org/Rating"> <meta itemprop="ratingValue" content="5"> <meta itemprop="bestRating" content="5"> <span class="bv-rating-stars-container"> <abbr title="5 out of 5 stars." class="bv-rating bv-rating-stars bv-rating-stars-off" aria-hidden="true"> ☆☆☆☆☆ </abbr> <abbr title="5 out of 5 stars." style="width:100% !important;" class="bv-rating-max bv-rating-stars bv-rating-stars-on" aria-hidden="true"> ☆☆☆☆☆ </abbr> <span class="bv-off-screen">5 out of 5 stars.</span> </span> </span>    <div class="bv-content-meta-wrapper"> <div class="bv-content-meta" role="presentation"> <div class="bv-content-reference-data bv-content-author-name">           <button type="button" class="bv-author bv-fullprofile-popup-target bv-focusable" itemprop="author" onclick="return false;"> <h3>SeattleIsNotAlwaysRainy</h3> </button>             <div class="bv-content-datetime" role="presentation"> <meta itemprop="dateCreated" content="2019-01-04">  <meta itemprop="datePublished" content="2019-01-04">  <span class="bv-content-datetime-dot" aria-hidden="true">·</span> <span class="bv-content-datetime-stamp">4 months ago &nbsp;</span> </div>  </div> </div> </div>  </div>  <div class="bv-content-title-container">  <h4 class="bv-content-title" itemprop="headline">    Nice Cami   </h4>    </div>    </div>  </div>     <div class="bv-content-details-offset-on">    <div class="bv-content-summary"> <div class="bv-content-summary-body" itemprop="reviewBody">  <div class="bv-content-summary-body-text">     <p>This is the second one I've bought. These are nice to wear under white tops since they are almost always see-through. Fits TTS.</p>      </div>   <div class="bv-content-data">      <div class="bv-content-product-questions">  <dl class="bv-content-data-product-questions"> <dt class="bv-content-data-label-container"> <span class="bv-content-data-label">By submitting a review, each client received a sweepstakes entry.</span> </dt> <dd class="bv-content-data-value">Yes</dd> </dl>  </div>  <div class="bv-content-tag-dimensions">  </div>    <dl class="bv-content-data-recommend-yes"> <dt class="bv-content-data-label-container"> <span class="bv-content-data-icon" aria-hidden="true">✔</span> <span class="bv-content-data-label">Yes</span>, </dt> <dd class="bv-content-data-value">  I recommend this product. </dd> </dl>             </div>  </div> </div> </div>  <div class="bv-content-details-container">    <div class="bv-secondary-ratings" role="presentation"> <dl class="bv-content-secondary-ratings">   <dt class="bv-content-secondary-ratings-label">How It Fits</dt>  <dd class="bv-content-slider"> <span class="bv-content-slider-container"> <ul class="bv-content-slider-bar" role="presentation"> <li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li><li class="bv-content-slider-segment" style="width:25% !important;" role="presentation"></li> </ul> <span class="bv-content-slider-halfway"></span> <div class="bv-content-slider-value-container"> <span class="bv-content-slider-value" style="margin-left:50% !important;"></span> </div> </span> <span class="bv-content-slider-sublabel1" aria-describedby="bv-rating-aria-description-236-sublabel1" aria-label="Rating of 1 means Fits Small"> Fits Small </span> <span class="bv-off-screen" id="bv-rating-aria-description-236-sublabel1">Rating of 1 means Fits Small</span> <span class="bv-content-slider-sublabel2" aria-describedby="bv-rating-aria-description-236-sublabel2" aria-label="Rating of 5 means Fits Large"> Fits Large </span> <span class="bv-off-screen" id="bv-rating-aria-description-236-sublabel2">Rating of 5 means Fits Large</span> <span class="bv-off-screen"> How It Fits, 3 out of 5</span>  </dd>    </dl> </div>     </div> </div> </div>   <div class="bv-content-actions-container bv-active-feedback">  <div data-bv-v="feedback:48" class="bv-feedback-container">
+   <span class="bv-off-screen bv-off-screen-positive-rating">0 people found this review helpful.</span> <span class="bv-off-screen bv-off-screen-negative-rating">0 people did not find this review helpful.</span> <dl class="bv-content-feedback-vote bv-content-feedback-vote-active"> <dt class="bv-content-feedback-vote-request"> <p>Was this helpful?</p> </dt> <dd class="bv-content-feedback-btn-container"> <button type="button" class="bv-content-btn bv-content-btn-feedback-yes bv-focusable" aria-label="Yes, review by SeattleIsNotAlwaysRainy is helpful." onclick="return false;"> <span aria-hidden="true"> Yes · <span class="bv-content-btn-count" aria-hidden="true">0</span> </span> <span class="bv-off-screen">0 people found this review helpful. Click to agree.</span> </button> <button type="button" class="bv-content-btn bv-content-btn-feedback-no bv-focusable" aria-label="No, review by SeattleIsNotAlwaysRainy is not helpful." onclick="return false;"> <span aria-hidden="true"> No · <span class="bv-content-btn-count" aria-hidden="true">0</span> </span> <span class="bv-off-screen">0 people did not find this review helpful. Click to agree.</span> </button> </dd> <dd class="bv-content-feedback-vote bv-content-feedback-vote-active"> <button type="button" class="bv-content-report-btn bv-focusable" aria-label="Mark Nice Cami by SeattleIsNotAlwaysRainy as inappropriate. " onclick="return false;">   Report  </button> </dd> </dl>   
+</div>    </div>    <div class="bv-inline-form-container"></div>  <div data-bv-v="secondaryContentList:46" class="bv-secondary-content-list">
+  <ol data-bv-v="secondaryContentItemCollection:47" class="bv-content-list bv-content-list-clientresponses">
+  
+</ol>  
+</div>   </div> 
+</li>  
+</ol>   <div data-bv-v="pagination:5" class="bv-content-pagination">
+ <!--begin-pagination--> <div class="bv-content-pagination-container"> <div data-bv-v="ugcCount:6" class="bv-control-bar-count">
+  <span class="bv-content-pagination-pages-current">    1–8 of 90 Reviews        &nbsp;</span>   
+</div>  <ul class="bv-content-pagination-buttons" role="presentation">  <li class="bv-content-pagination-buttons-item bv-content-pagination-buttons-item-previous" role="presentation">  <button type="button" class="bv-content-btn bv-content-btn-pages bv-content-btn-pages-first bv-focusable bv-content-btn-pages-inactive" disabled="" onclick="return false;"> <span class="bv-off-screen"> Previous </span> <span class="bv-content-btn-pages-prev" aria-hidden="true">   ◄   </span> </button>  </li>  <li class="bv-content-pagination-buttons-item bv-content-pagination-buttons-item-next" role="presentation">   <a href="http://display.ugc.bazaarvoice.com/common/util/clientTestPage.html?client=Anntaylorloft&amp;siteId=Main%20Site&amp;locale=en_US&amp;productId=417548&amp;methods=rr_show_reviews&amp;mobile=true&amp;bvstate=pg:2/ct:r" role="button" class="bv-content-btn bv-content-btn-pages bv-content-btn-pages-last bv-focusable bv-content-btn-pages-active"> <span class="bv-off-screen"> Next </span> <span class="bv-content-btn-pages-next" aria-hidden="true">  ►  </span> </a>  </li> </ul> </div>  <!--end-pagination--> 
+</div>     </div> </div> 
+</div> </div> </div>
+      </div>
+
+      <div id="BVQAContainer">
+      </div>
+
+      <div id="BVSYContainer">
+      </div>
+
+      <ul id="BVRRInlineRatings">
+      </ul>
+      <div id="BVSubmissionContainer"></div>
+    </div>​
+
+    <script type="text/html" id="inline-rating-template">
+      <li class="product-item">
+        <h2><%= productId %></h2>
+        <div id="<%= prefix %>-<%= productId %>"></div>
+      </li>
+    </script>
+
+  
+
+<div class="bv-verify-css-loaded" style="height: 0px; width: 0px; border: 0px;"></div><ul id="BVSEO_meta" style="display:none!important">  <li data-bvseo="bvDateModified">2019-05-15T10:40+03:00</li>    <li data-bvseo="ps">bvseo_fps, prod_bvrr, vn_firebird_1.0.30</li>  <li data-bvseo="cp">cp_1, bvpage1</li>  <li data-bvseo="cf">loc_en_US, 417548, prd, sort_mostRecent</li>     <li data-bvseo="co">co_hasreviews, co_noquestions, tv_90, tr_90</li>  </ul></body><script id="fbi_debug_flag">var FBI_DEBUG = false;</script><script src="chrome-extension://afpdcjbepdfkohibblookggddkjaeigo/js/bv-fbh-injected-init.js"></script></html>
