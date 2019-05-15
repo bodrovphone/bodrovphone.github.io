@@ -7753,7 +7753,6 @@
 }
 .bv-cv2-cleanslate .bv-core-container-507 .bv-submission .bv-fieldsets .bv-fieldset-rating .bv-fieldset-rating-wrapper .bv-rating-helper {
   color: #000 !important;
-  margin-right: 4em !important;
 }
 .bv-cv2-cleanslate .bv-core-container-507 .bv-submission .bv-submission-rating-cancel,
 .bv-cv2-cleanslate .bv-core-container-507 .bv-submission .bv-submission-star-rating {
@@ -8653,8 +8652,8 @@
   display: block !important;
 }
 .bv-cv2-cleanslate .bv-core-container-507 .bv-mbox-box {
-  width: 90% !important;
-  max-width: 900px !important;
+  width: 80% !important;
+  max-width: 840px !important;
   margin: 0 auto !important;
   overflow: visible !important;
   position: relative !important;
