@@ -10,7 +10,7 @@
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="apple-touch-icon" href="apple-touch-icon.png">
-        <meta http-equiv="Content-Security-Policy" content="script-src 'strict-dynamic' 'nonce-omgdonttellthisanyone'" >
+        <meta http-equiv="Content-Security-Policy" content="script-src 'self' *.bazaarvoice.js" >
         <link rel="stylesheet" href="css/bootstrap.min.css">
         <style>
             body {
@@ -22,9 +22,7 @@
         <link rel="stylesheet" href="css/main.css">
         <!-- BV integration code -->
         <script nonce="omgdonttellthisanyone" type="text/javascript" src="https://display.ugc.bazaarvoice.com/static/Agileville/obodrov/en_US/bvapi.js"></script>
-        <script nonce="omgdonttellthisanyone" type="text/javascript"> 
-          $BV.configure('global', { productId : 'product1' });
-        </script>
+        <script src="js/config.js"></script>
         <!-- end of BV integration code -->
         <script nonce="omgdonttellthisanyone" src="js/vendor/modernizr-2.8.3-respond-1.4.2.min.js"></script>
     </head>
@@ -58,14 +56,7 @@
     </nav>
     <div id="BVRRSummaryContainer"></div>
     <div id="BVRRContainer"></div>
-    <script nonce="omgdonttellthisanyone" type="text/javascript">
-      $BV.ui( 'rr', 'show_reviews', {
-          doShowContent : function () { 
-            // If the container is hidden (such as behind a tab), put code here to make it visible 
-            //(open the tab).
-          }
-      });
-    </script>
+    <script src="js/ui.js"></script>
     <!-- Main jumbotron for a primary marketing message or call to action -->
     <div class="jumbotron">
       <div class="container">
