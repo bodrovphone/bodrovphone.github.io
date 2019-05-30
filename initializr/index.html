@@ -22,7 +22,9 @@
         <link rel="stylesheet" href="css/main.css">
         <!-- BV integration code -->
         <script nonce="omgdonttellthisanyone" type="text/javascript" src="https://display.ugc.bazaarvoice.com/static/Agileville/obodrov/en_US/bvapi.js"></script>
-        <script src="js/config.js"></script>
+        <script nonce="omgdonttellthisanyone">
+          $BV.configure('global', { productId : 'product1' });
+        </script>
         <!-- end of BV integration code -->
         <script nonce="omgdonttellthisanyone" src="js/vendor/modernizr-2.8.3-respond-1.4.2.min.js"></script>
     </head>
@@ -56,7 +58,14 @@
     </nav>
     <div id="BVRRSummaryContainer"></div>
     <div id="BVRRContainer"></div>
-    <script src="js/ui.js"></script>
+    <script nonce="omgdonttellthisanyone">
+      $BV.ui( 'rr', 'show_reviews', {
+        doShowContent : function () { 
+          // If the container is hidden (such as behind a tab), put code here to make it visible 
+          //(open the tab).
+        }
+      });
+    </script>
     <!-- Main jumbotron for a primary marketing message or call to action -->
     <div class="jumbotron">
       <div class="container">
