@@ -10940,8 +10940,7 @@
   z-index: 2 !important;
 }
 @media screen and (max-width: 736px) {
-  .bv-cv2-cleanslate .bv-core-container-2111 .bv-section-summary .bv-section-summary-inline .bv-secondary-rating-summary,
-  .bv-cv2-cleanslate .bv-core-container-2111 .bv-section-summary .bv-section-summary-inline .bv-inline-histogram-ratings {
+  .bv-cv2-cleanslate .bv-core-container-2111 .bv-section-summary .bv-section-summary-inline .bv-secondary-rating-summary {
     width: 100% !important;
   }
 }
