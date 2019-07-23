@@ -3582,10 +3582,10 @@ function program3(depth0,data) {
   if (stack1 = helpers.serial) { stack1 = stack1.call(depth0, {hash:{}}); }
   else { stack1 = depth0.serial; stack1 = typeof stack1 === functionType ? stack1.apply(depth0) : stack1; }
   buffer += escapeExpression(stack1)
-    + "\"> <a class=\"bv-rating-link bv-focusable\" ";
+    + "\"> <span class=\"bv-rating-link bv-focusable\" ";
   stack1 = helpers['if'].call(depth0, depth0.id, {hash:{},inverse:self.noop,fn:self.program(1, program1, data)});
   if(stack1 || stack1 === 0) { buffer += stack1; }
-  buffer += " role=\"radio\" href=\"javascript:void(0)\" aria-checked=\"false\"> ";
+  buffer += " role=\"radio\" aria-checked=\"false\"> ";
   options = {hash:{
     'ariaHidden': ("true")
   },inverse:self.noop,fn:self.program(3, program3, data)};
@@ -3595,7 +3595,7 @@ function program3(depth0,data) {
   if (stack2 = helpers.title) { stack2 = stack2.call(depth0, {hash:{}}); }
   else { stack2 = depth0.title; stack2 = typeof stack2 === functionType ? stack2.apply(depth0) : stack2; }
   if(stack2 || stack2 === 0) { buffer += stack2; }
-  buffer += "</span> </a> </span> ";
+  buffer += "</span> </span> </span> ";
   return buffer;
   });
 Handlebars.registerPartial('submissionStar', t);
@@ -3765,7 +3765,8 @@ BV.define('vendor/jquery/rating',['jquery', 'underscore', 'util/specialKeys', 'h
           }
 
           // Hide the input from screen readers
-          input.attr('role', 'presentation');
+          // role=presentation cause AXE error and do not change screenreaders playback. See CCS-32719.
+          //input.attr('role', 'presentation');
           input.attr('aria-hidden', 'true');
 
           rater.append(star);
@@ -3852,7 +3853,7 @@ BV.define('vendor/jquery/rating',['jquery', 'underscore', 'util/specialKeys', 'h
 
               $next = $this.next();
               $prev = $this.prev();
-               
+
               if ($next[0] && keyCode === specialKeys.RIGHT) {
                 $this.rating('deactivate');
                 $next.rating('activate');
@@ -3864,7 +3865,7 @@ BV.define('vendor/jquery/rating',['jquery', 'underscore', 'util/specialKeys', 'h
               }
               // Deactivate SPACE and ENTER keys, as rating is selected
               // when arrow key is pressed
-              if (keyCode === specialKeys.SPACE || keyCode === specialKeys.ENTER) {                  
+              if (keyCode === specialKeys.SPACE || keyCode === specialKeys.ENTER) {
                 e.preventDefault();
                 e.stopPropagation();
               }
@@ -10343,6 +10344,8 @@ function SearchContentListExt (
             v.$el.detach();
           }
         });
+        // moving focus to the search input in case review comment is opened (see CCS-33163 for clarity)
+        FocusManager.moveFocus($('.bv-search-text'));
 
         _(coverageContent).each(function (el) {
           var bvp = bvProduct[el];
