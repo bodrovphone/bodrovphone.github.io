@@ -140,7 +140,7 @@ function program23(depth0,data) {
   buffer += " ";
   stack1 = helpers['if'].call(depth0, depth0.fingerprintScriptError, {hash:{},inverse:self.noop,fn:self.program(26, program26, data)});
   if(stack1 || stack1 === 0) { buffer += stack1; }
-  buffer += " <span id=\"bv-required-text\" class=\"bv-focusable\" tabindex=\"-1\"> <p class=\"bv-required-fields-text\">";
+  buffer += " <span id=\"bv-required-text\"> <p class=\"bv-required-fields-text\">";
   options = {hash:{}};
   buffer += escapeExpression(((stack1 = helpers.extmsg),stack1 ? stack1.call(depth0, "display_required_text", depth0.msgpack, options) : helperMissing.call(depth0, "extmsg", "display_required_text", depth0.msgpack, options)))
     + "</p> ";
@@ -647,7 +647,8 @@ function program1(depth0,data,depth1) {
   buffer += " ";
   options = {hash:{
     'fieldsetClasses': ("bv-nocount"),
-    'inputType': ("textarea")
+    'inputType': ("textarea"),
+    'requiredWarning': ("bv-required-text")
   },inverse:self.noop,fn:self.program(2, program2, data)};
   stack2 = ((stack1 = helpers.submissionField),stack1 ? stack1.call(depth0, "commenttext", depth0, depth1, options) : helperMissing.call(depth0, "submissionField", "commenttext", depth0, depth1, options));
   if(stack2 || stack2 === 0) { buffer += stack2; }
@@ -689,7 +690,8 @@ function program1(depth0,data,depth1) {
   buffer += " ";
   options = {hash:{
     'fieldsetClasses': ("bv-nocount"),
-    'inputType': ("textarea")
+    'inputType': ("textarea"),
+    'requiredWarning': ("bv-required-text")
   },inverse:self.noop,fn:self.program(2, program2, data)};
   stack2 = ((stack1 = helpers.submissionField),stack1 ? stack1.call(depth0, "questionsummary", depth0, depth1, options) : helperMissing.call(depth0, "submissionField", "questionsummary", depth0, depth1, options));
   if(stack2 || stack2 === 0) { buffer += stack2; }
@@ -731,7 +733,8 @@ function program1(depth0,data,depth1) {
   buffer += " ";
   options = {hash:{
     'fieldsetClasses': ("bv-nocount"),
-    'inputType': ("textarea")
+    'inputType': ("textarea"),
+    'requiredWarning': ("bv-required-text")
   },inverse:self.noop,fn:self.program(2, program2, data)};
   stack2 = ((stack1 = helpers.submissionField),stack1 ? stack1.call(depth0, "answertext", depth0, depth1, options) : helperMissing.call(depth0, "submissionField", "answertext", depth0, depth1, options));
   if(stack2 || stack2 === 0) { buffer += stack2; }
@@ -1093,7 +1096,8 @@ function program2(depth0,data) {
   options = {hash:{
     'fieldsetClasses': (""),
     'inputClasses': ("bv-required"),
-    'numHelpers': ("1")
+    'numHelpers': ("1"),
+    'requiredWarning': ("bv-required-text")
   },inverse:self.noop,fn:self.program(5, program5, data)};
   stack2 = ((stack1 = helpers.submissionField),stack1 ? stack1.call(depth0, "rating", depth0.formFields, depth0, options) : helperMissing.call(depth0, "submissionField", "rating", depth0.formFields, depth0, options));
   if(stack2 || stack2 === 0) { buffer += stack2; }
@@ -1127,7 +1131,8 @@ function program7(depth0,data) {
   options = {hash:{
     'fieldsetClasses': ("bv-fieldset-active"),
     'inputClasses': ("bv-required"),
-    'numHelpers': ("1")
+    'numHelpers': ("1"),
+    'requiredWarning': ("bv-required-text")
   },inverse:self.noop,fn:self.program(5, program5, data)};
   stack2 = ((stack1 = helpers.submissionField),stack1 ? stack1.call(depth0, "rating", depth0.formFields, depth0, options) : helperMissing.call(depth0, "submissionField", "rating", depth0.formFields, depth0, options));
   if(stack2 || stack2 === 0) { buffer += stack2; }
@@ -1404,7 +1409,7 @@ helpers = helpers || Handlebars.helpers; partials = partials || Handlebars.parti
 function program1(depth0,data) {
   
   var buffer = "", stack1, stack2;
-  buffer += " <li class=\"bv-radio-container-li\" role=\"checkbox\" aria-labelledby=\"bv-checkbox-";
+  buffer += " <li class=\"bv-radio-container-li\" role=\"option\" aria-labelledby=\"bv-checkbox-";
   if (stack1 = helpers.parentSchemaId) { stack1 = stack1.call(depth0, {hash:{}}); }
   else { stack1 = depth0.parentSchemaId; stack1 = typeof stack1 === functionType ? stack1.apply(depth0) : stack1; }
   buffer += escapeExpression(stack1)
@@ -1458,7 +1463,7 @@ function program1(depth0,data) {
     + " <span aria-hidden=\"false\" class=\"bv-off-screen bv-field-aria-validation\"></span> </legend> <div class=\"bv-fieldset-arrowicon\"></div> <div class=\"bv-fieldset-inner\"> ";
   stack2 = self.invokePartial(partials.submissionHelper, 'submissionHelper', depth0, helpers, partials);
   if(stack2 || stack2 === 0) { buffer += stack2; }
-  buffer += " <div class=\"bv-fieldset-radio-wrapper\"> <ul class=\"bv-fieldset-tags-group bv-radio-group\" role=\"presentation\"> ";
+  buffer += " <div class=\"bv-fieldset-radio-wrapper\"> <ul class=\"bv-fieldset-tags-group bv-radio-group\" role=\"listbox\"> ";
   stack2 = helpers.each.call(depth0, depth0.tags, {hash:{},inverse:self.noop,fn:self.program(1, program1, data)});
   if(stack2 || stack2 === 0) { buffer += stack2; }
   buffer += " </ul> </div> </div> </fieldset> ";
@@ -6302,6 +6307,7 @@ BV.define('bv/c2013/view/submission',[
         // Changed to 'true' according to CCS-16210. With out role="dialog" screen
         // readers don't start to read opened T&C box automatically
         ariaDialog: true,
+        ariaDescribedby: 'bv-terms-conditions',
         overlay: false
       };
 
@@ -6806,7 +6812,7 @@ helpers = helpers || Handlebars.helpers;
 function program1(depth0,data) {
   
   var buffer = "", stack1, stack2, options;
-  buffer += " <hgroup class=\"bv-submission-message\" role=\"presentaion\"> ";
+  buffer += " <hgroup class=\"bv-submission-message\"> ";
   options = {hash:{
     'classList': ("bv-submission-icon"),
     'ariaHidden': ("true")
@@ -6905,7 +6911,7 @@ function program2(depth0,data) {
   return " &#x2718; ";
   }
 
-  buffer += " <div class=\"bv-cleanslate bv-cv2-cleanslate bv-absolute-top-container\"> <div class=\"bv-core-container-";
+  buffer += " <div class=\"bv-cleanslate bv-cv2-cleanslate bv-absolute-top-container\" role=\"region\" aria-label=\"Guidelines\"> <div class=\"bv-core-container-";
   if (stack1 = helpers.version) { stack1 = stack1.call(depth0, {hash:{}}); }
   else { stack1 = depth0.version; stack1 = typeof stack1 === functionType ? stack1.apply(depth0) : stack1; }
   buffer += escapeExpression(stack1)
@@ -6913,7 +6919,7 @@ function program2(depth0,data) {
   if (stack1 = helpers.dropdownId) { stack1 = stack1.call(depth0, {hash:{}}); }
   else { stack1 = depth0.dropdownId; stack1 = typeof stack1 === functionType ? stack1.apply(depth0) : stack1; }
   buffer += escapeExpression(stack1)
-    + "\" class=\"bv-popup bv-textdropdown\" role=\"tooltip\"> ";
+    + "\" class=\"bv-popup bv-textdropdown\"> ";
   if (stack1 = helpers.text) { stack1 = stack1.call(depth0, {hash:{}}); }
   else { stack1 = depth0.text; stack1 = typeof stack1 === functionType ? stack1.apply(depth0) : stack1; }
   if(stack1 || stack1 === 0) { buffer += stack1; }
@@ -7460,15 +7466,6 @@ BV.define('bv/c2013/view/dropdownable',[
         alwaysShow: options.alwaysShow
       });
 
-      // add role="tooltip" so that VoiceOver will be able to read information from lists
-      if (dropdown.text.indexOf('<ul') !== -1) {
-        dropdown.text = dropdown.text.replace(/<ul/g, '<ul role="tooltip"');
-      }
-
-      if (dropdown.text.indexOf('<ol') !== -1) {
-        dropdown.text = dropdown.text.replace(/<ol/g, '<ol role="tooltip"');
-      }
-
       // TODO: Each Dropdownable seems to be designed to manage exactly one
       // TextDropdown, but I'm not sure why we decided to store them in a
       // global hashtable instead of just having one on each Dropdownable
@@ -7910,6 +7907,9 @@ BV.define('bv/ugc/submission',[
         viewCleanup(submissionView);
         viewCleanup(thankYouPageView);
       }
+      // we want to remove the layer explicitly to prevent infinitive loop
+      // in focus manager and browser crash as a consequence. See CCS-33928.
+      FocusableView.deregisterFocusableLayer();
     };
 
     // In nearly all cases, we want the X on the "thank you" message to close
@@ -8275,6 +8275,9 @@ BV.define('bv/ugc/submission',[
           productName: subjectName
         }),
         ariaTitle: ariaTitle,
+
+        submissionPage: true,
+        ariaLabeledBy: 'bv-mbox-breadcrumb-item',
 
         // Give the box a class that contains its content type in order to
         // make automated testing easier.
@@ -9190,7 +9193,9 @@ function (
       var authToken = UrlState.get('bv_authtoken');
       var unsubscribeToken = UrlState.get('bv_unsubtoken');
       var siteAuthToken = clientAPIConfig.userToken || UrlState.get('userToken', 'bv');
+      var lang = ENV.get('config').locale.substring(0, 2);
       clientAPIConfig.containerId = 'BVContainer';
+      $('html').attr('lang', lang);
 
       if (UrlState.get('mobile', 'bv') || navigator.userAgent.match(/(iPhone|iPod|Android|BlackBerry)/)) {
         BV._internal.mobile = true;
@@ -9202,7 +9207,7 @@ function (
         var emailType;
         $(body())
           // Wipe out the body to ensure we're on a blank container. Place some divs on the page in case we need to load an inline form.
-          .html('<div id="BVContainer"><div class="bv-inline-form-container bv-cleanslate bv-cv2-cleanslate"/></div>')
+          .html('<div id="BVContainer" role="main"><div class="bv-inline-form-container bv-cleanslate bv-cv2-cleanslate"/></div>')
           .addClass('bv-standalone-container');
         LoadingOverlay.show();
 
@@ -9836,6 +9841,8 @@ BV.define('bv/c2013/_extensions/view/contentItemExt',[
       var ModestBoxInline = false;
       var lastView = _(viewList).last();
 
+      var ariaLabeledBy;
+
       if (lastView.name === 'submission') {
         submissionView = true;
         ModestBoxId = lastView.ModestBoxId || ModestBoxId;
@@ -9848,6 +9855,7 @@ BV.define('bv/c2013/_extensions/view/contentItemExt',[
       );
 
       sb = ModestBox.get(ModestBoxId);
+
       secondaryContentType = ContentType.noun(this.model.get('secondaryContentType'));
 
       if (sb.opened && sb.inline) {
@@ -9858,6 +9866,7 @@ BV.define('bv/c2013/_extensions/view/contentItemExt',[
       submissionMessage = submissionMsgPack['submit_' + secondaryContentType];
       title = submissionView ? submissionMessage() : '';
       ariaTitle = msgPack[ariaTitleType] ? msgPack[ariaTitleType]() : title;
+      ariaLabeledBy = submissionView ? 'bv-mbox-breadcrumb-item' : '';
 
       // Give the box a class that contains its content type in order to make
       // automated testing easier.
@@ -9878,6 +9887,8 @@ BV.define('bv/c2013/_extensions/view/contentItemExt',[
         showCloseButton: true,
         ariaTitle: ariaTitle,
         showBreadcrumb: submissionView,
+        submissionPage: submissionView,
+        ariaLabeledBy: ariaLabeledBy,
 
         beforeShow: function beforeShow () {
           _(this.views).forEach(function forEachView (view) {
@@ -10328,6 +10339,7 @@ function SearchContentListExt (
 
       lightboxOptions = {
         ariaDialog: true,
+        ariaDescribedby: 'bv-content-list-products-wrapper',
         keyboardEnabled: false,
         classList: ['narrow', 'search'],
         container: null,
@@ -10365,7 +10377,7 @@ function SearchContentListExt (
         });
       }
 
-      self.mb = ModestBox.get('search');
+      self.mb = ModestBox.get(this.ModestBoxId);
 
       if (!includeSubmission) {
         // sorry, but I don't remember why I added this condition.
@@ -11861,13 +11873,13 @@ function (
     init: function () {
       _(this.model.filters).each(function (filter) {
         this.listenTo(filter, {
-          'filterOptionChanged': this.filterOptionChanged
+          filterOptionChanged: this.filterOptionChanged
         });
       }, this);
 
       this.listenTo(this.model, {
-        'filterEnabledChanged': this.filterOptionChanged,
-        'allFiltersCleared': this._checkVisibility
+        filterEnabledChanged: this.filterOptionChanged,
+        allFiltersCleared: this._checkVisibility
       });
     },
 
@@ -11892,6 +11904,13 @@ function (
       var option = filter.getOption(optionId);
 
       option.set('enabled', false);
+      // Set focus to next activited filter or back to filter select button.
+      if (this.$viewEl.hasClass('bv-hidden')) {
+        focusManager.focusPrev();
+      }
+      else {
+        focusManager.focusNext();
+      }
 
       BVTracker.feature({
         type: 'Used',
@@ -11919,14 +11938,16 @@ function (
     },
 
     _checkVisibility: function () {
-      if (this.isBeforeAttach()) { return; }
+      var shouldBeHidden;
 
+      if (this.isBeforeAttach()) { return; }
       // If we're about to show the active filters, we should first go
       // through the filter list and make sure the right ones are visible.
       //
       // If we're about to hide the active filters, we don't need to bother
       // with that chore; we'll do it when we get toggled back to visible.
-      var shouldBeHidden = this.model.activeFilters.length === 0;
+      shouldBeHidden = this.model.activeFilters.length === 0;
+
       if (!shouldBeHidden) {
         this._checkFilterVisibility();
       }
@@ -12192,15 +12213,7 @@ function program5(depth0,data) {
   if (stack1 = helpers.label) { stack1 = stack1.call(depth0, {hash:{}}); }
   else { stack1 = depth0.label; stack1 = typeof stack1 === functionType ? stack1.apply(depth0) : stack1; }
   buffer += escapeExpression(stack1)
-    + "\"> <div class=\"bv-dropdown-target\" role=\"menu\"> <button type=\"button\" class=\"bv-focusable\" role=\"menuitem\" aria-haspopup=\"true\" aria-controls=\"bv-content-filter-dropdown-";
-  if (stack1 = helpers.id) { stack1 = stack1.call(depth0, {hash:{}}); }
-  else { stack1 = depth0.id; stack1 = typeof stack1 === functionType ? stack1.apply(depth0) : stack1; }
-  buffer += escapeExpression(stack1)
-    + "\" aria-expanded=\"false\" aria-owns=\"bv-content-filter-dropdown-";
-  if (stack1 = helpers.id) { stack1 = stack1.call(depth0, {hash:{}}); }
-  else { stack1 = depth0.id; stack1 = typeof stack1 === functionType ? stack1.apply(depth0) : stack1; }
-  buffer += escapeExpression(stack1)
-    + "\"> ";
+    + "\"> <div class=\"bv-dropdown-target\" role=\"menu\"> <button type=\"button\" class=\"bv-focusable\" role=\"menuitem\" aria-haspopup=\"true\" aria-expanded=\"false\"> ";
   options = {hash:{
     'classList': ("bv-dropdown-arrow"),
     'ariaHidden': ("true"),
@@ -12296,6 +12309,7 @@ BV.define('bv/c2013/view/contentFilterSelect',[
       var $elem = $(event.target);
       var val = $elem.val();
       var option;
+      var $filterSelectButton;
 
       if (val === '') { return; }
 
@@ -12304,11 +12318,34 @@ BV.define('bv/c2013/view/contentFilterSelect',[
 
       // Reset the dropdown so that it shows the name of the filter.
       $elem.val('');
+
+      $filterSelectButton = $elem.parent().find('.bv-dropdown-target button.bv-focusable').eq(0);
+      // Leave focus on filter select button.
+      if ($filterSelectButton.length) {
+        setTimeout(function () {
+          focusManager.moveFocus($filterSelectButton);
+        }, 0);
+      };
+    },
+
+    leave: function () {
+      var $targetEl = this.$targetEl.find('button');
+      if ($targetEl) {
+        $targetEl.removeAttr('aria-owns');
+        $targetEl.removeAttr('aria-controls');
+      }
+      return BSelectView.prototype.leave.apply(this, arguments);
     },
 
     enter: function () {
       // If we're on mobile, do nothing, because the native SELECT element is
       // shown instead.
+      var $targetEl = this.$targetEl.find('button');
+      var label = this.$targetEl.find('.bv-dropdown').attr('data-bv-filter-for');
+      if ($targetEl) {
+        $targetEl.attr('aria-owns', 'bv-content-filter-dropdown-' + label);
+        $targetEl.attr('aria-controls', 'bv-content-filter-dropdown-' + label);
+      }
       if (this.model.get('isMobile')) { return; }
       return BSelectView.prototype.enter.apply(this, arguments);
     },
@@ -12518,16 +12555,11 @@ function (
           $filter.css('width', 1);
 
           maxWidth = $filterWrapper.width();
-
-          // Set $filterWrapper width to prevent IE8 bug in the case that
-          // all containers outside the filter has no explicit width.
-          $filterWrapper.css('width', maxWidth);
           $filter
             .css('width', 'auto')
             .css('max-width', maxWidth);
         }
         else {
-          $filterWrapper.css('width', 'auto');
           $filter.css('max-width', 'none');
         }
       }
@@ -12544,7 +12576,8 @@ function (
         // Rescan so the newly-shown container gets put in the proper place
         // in the focus order.
         this.rescanFocusLayer();
-        this.moveFocus($viewEl);
+        // Leave the focus on contentFilterButton
+        // this.moveFocus($viewEl);
       }
       else {
         setMaxWidth(true);
